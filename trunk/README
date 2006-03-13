@@ -1,0 +1,25 @@
+kabbit v.0.0.1 23.02.2006
+
+--------- INSTALLATION -------
+
+For installation instructions see the INSTALL folder in this directory.
+
+--------- LICENSE ------------
+
+kabbit is licensed under GPLv2. Copyright by Sebastian Moors, 23.02.2006
+
+-------- Configuration ------- 
+
+The main configuration file is located at /etc/kabbit.conf.
+You have to fill out the values bot_jid, bot_password and allowed_users.
+bot_jid is the full jabber ID of your bot (without ressource, p.ex. bot@example.com).
+bot_password is your plaintext password for this jid.
+allowed_users is a comma-seperated list of users, who will be allowed to use the bot.
+
+After kabbit is installed and configured correctly, you can start it with:
+
+/etc/init.d/kabbit start
+
+
+
+

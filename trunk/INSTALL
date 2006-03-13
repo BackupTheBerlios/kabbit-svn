@@ -1,0 +1,19 @@
+---- kabbit install instructions ----
+
+kabbit depends on python and the python xmpppy module. Before you install kabbit,
+you have to make shure that both are installed. 
+
+If you use debian, you can install both with:
+
+ apt-get install python python-xmpp 
+
+
+For other distributions have a look at your own paket-managemant tool or fetch the software from
+http://www.python.org and http://xmpppy.sourceforge.net .  
+
+
+Then go to your kabbit-source folder and run ./install.py. 
+
+
+
+
