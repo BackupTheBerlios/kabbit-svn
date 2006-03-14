@@ -51,7 +51,6 @@ shutil.copyfile("plugins/song.py","/usr/lib/kabbit/plugins/song.py")
 shutil.copyfile("plugins/core.py","/usr/lib/kabbit/plugins/core.py")
 
 #copy modules
-shutil.copyfile("./sysinfo.py","/usr/lib/kabbit/sysinfo.py")
 shutil.copyfile("./config.py","/usr/lib/kabbit/config.py")
 
 #init.d skript

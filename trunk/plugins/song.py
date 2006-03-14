@@ -15,6 +15,12 @@ class plugin:
 		self.commands="lyr"
 		self.auth="public"
 		self.help="Lyr Help"
+		'''auth could be public,self or private
+		   private means only the users defined by the allowed_jid's list are allowed_jid
+		   to use the service
+		'''
+		self.auth="public"
+
 
 
 	def get_lyrics(self,ARTIST,TITLE):

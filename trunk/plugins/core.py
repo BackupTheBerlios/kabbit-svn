@@ -10,6 +10,7 @@ class plugin:
 		self.version="0.1"
 		self.commands="df,status,version"
 		self.help="Builtin plugins"
+		self.auth="private"
 
 	def process_message(self,cmd,args):
 		if cmd == "status":

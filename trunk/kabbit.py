@@ -15,22 +15,33 @@
 #
 
 
+
+import re
 import sys
 import xmpp
 import os
 import signal
+import logging
 import time
 
-#the sysinfo module is stored here
+
+#the config module is stored here
 sys.path.append("/usr/lib/kabbit")
 
-import logging
-
-import sysinfo
 from config import config
+
+
+
 conf=config()
 
 stopped_by_sig=0
+
+pluginlist = {}
+
+r=re.compile(".*\.py$")
+
+#maximal accounts in our roster
+MAX_ROSTER_LENGTH=100
 
 ##########################################################
 #  setup the logger.					 #
@@ -68,10 +79,6 @@ else:
 ##########################################################
 
 
-
-pluginlist = {}
-import re
-r=re.compile(".*\.py$")
 
 def get_plugins(nothing,path,files):
 	global pluginlist
@@ -135,9 +142,12 @@ def presenceCB(conn,prs):
 	who = prs.getFrom().getStripped()
 	allowed_jids = conf.allowed_users
 
-	if msg_type == 'subscribe' and ((str(who)).split("/"))[0] in allowed_jids :
-		conn.send(xmpp.Presence(to=who, typ = 'subscribed'))
-		conn.send(xmpp.Presence(to=who, typ = 'subscribe'))
+	if msg_type == 'subscribe' :
+		roster = conn.getRoster()
+		# for security reasons there's a maximal roster length
+		if len(roster) < MAX_ROSTER_LENGTH:
+			conn.send(xmpp.Presence(to=who, typ = 'subscribed'))
+			conn.send(xmpp.Presence(to=who, typ = 'subscribe'))
 
 def messageCB(conn,mess):
 	global pluginlist
@@ -147,10 +157,15 @@ def messageCB(conn,mess):
 
 	allowed_jids = conf.allowed_users
 
+	auth=0
+
 	if ((str(user)).split("/"))[0] not in allowed_jids:
 		#exit if user is not allowed to use our bot
-		logger.warning("Failed login from " + ((str(user)).split("/"))[0])
-		return
+		#logger.warning("Failed login from " + ((str(user)).split("/"))[0])
+		#return
+		pass
+	else:
+		auth=1
 
 
 	if text.find(' ')+1:
@@ -160,32 +175,38 @@ def messageCB(conn,mess):
 
 	cmd = command.lower()
 
+	if auth == 1:
+
+
+		if cmd == "load":
+			loadPlugin(args)
+
+		if cmd == "unload":
+			unloadPlugin(args)
+
+		if cmd == "help" and len(args)==0:
+			conn.send(xmpp.Message(user, help()))
+
+
+		if cmd == "help" and len(args)>0:
+			if isPluginLoaded(str(args)):
+				conn.send(xmpp.Message(user, pluginlist[args].help))
+
+
+		if cmd == "plugins":
+			conn.send(xmpp.Message(user, getPluginList()))
 
 	for plugin in pluginlist:
-		conn.send(xmpp.Message(user, pluginlist[plugin].process_message(cmd,args)))
+		if pluginlist[plugin].auth == "public":
+			conn.send(xmpp.Message(user, pluginlist[plugin].process_message(cmd,args)))
 
+		if pluginlist[plugin].auth == "self":
+			if pluginlist[plugin].authenticate(user):
+				conn.send(xmpp.Message(user, pluginlist[plugin].process_message(cmd,args)))
 
-	if cmd == "load":
-		loadPlugin(args)
+		if pluginlist[plugin].auth == "private" and auth == 1:
+			conn.send(xmpp.Message(user, pluginlist[plugin].process_message(cmd,args)))
 
-	if cmd == "unload":
-		unloadPlugin(args)
-
-
-
-	if cmd == "help" and len(args)==0:
-		conn.send(xmpp.Message(user, help()))
-
-
-	if cmd == "help" and len(args)>0:
-		if isPluginLoaded(str(args)):
-			conn.send(xmpp.Message(user, pluginlist[args].help))
-
-
-
-
-	if cmd == "plugins":
-		conn.send(xmpp.Message(user, getPluginList()))
 
 
 def StepOn(conn):
