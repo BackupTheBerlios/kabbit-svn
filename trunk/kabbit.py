@@ -261,6 +261,6 @@ def main():
 			GoOn(conn)
 		except Exception,e:
 			print e
-			time.sleep(5)
+			time.sleep(30)
 
 main()
