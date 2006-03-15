@@ -7,8 +7,12 @@ class plugin:
 	def __init__(self):
 		self.descr="Kabbit core plugins"
 		self.author="Sebastian Moors"
-		self.version="0.1"
-		self.commands="df,status,version"
+		self.version="0.1b"
+		self.commands={}
+		self.commands["status"]="Returns informations about diskspace, uptime etc."
+		self.commands["services"]="The same as ps on your machine"
+		self.commands["df"]="Returns free disk space"
+
 		self.help="Builtin plugins"
 		self.auth="private"
 

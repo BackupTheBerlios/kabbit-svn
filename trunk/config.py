@@ -15,6 +15,8 @@ class config:
 		self.jid=config.get("jabber","bot_jid")
 		self.pwd=config.get("jabber","bot_password")
 
+		self.visibility=config.get("jabber","visibility")
+
 		self.log_file=config.get("main","log_file")
 		self.log_level=config.get("main","log_level")
 

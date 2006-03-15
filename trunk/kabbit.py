@@ -38,6 +38,10 @@ stopped_by_sig=0
 
 pluginlist = {}
 
+# command_list['status'] = "core"
+# command_list['cmd'] = "pluginname"
+command_list={}
+
 r=re.compile(".*\.py$")
 
 #maximal accounts in our roster
@@ -85,9 +89,9 @@ def get_plugins(nothing,path,files):
 	for f in files:
 		if r.match(f):
 			fname = f.split('.')[0]
-            		pluginlist[fname] = (__import__(fname,globals(),locals(),[]))
-			# construct an instance
-			pluginlist[fname] = pluginlist[fname].plugin()
+			loadPlugin(fname)
+
+
 def loadPlugin(name):
 	'''load plugin'''
 	if isPluginLoaded(name):
@@ -95,19 +99,33 @@ def loadPlugin(name):
 		unloadPlugin(name)
 
 	try:
-		pluginlist[name] = (__import__(name,globals(),locals(),[]))
+		tmp=(__import__(name,globals(),locals(),[]))
+		tmp_object=tmp.plugin()
+
+		#be sure that no command is already in the commandlist
+		for command in tmp_object.commands:
+			if command in command_list:
+				raise Exception
+			else:
+				command_list[command] = name
 		# construct an instance
-		pluginlist[name] = pluginlist[name].plugin()
+
+		pluginlist[name] = tmp_object
 	except Exception:
 		pass
+
 
 def unloadPlugin(name):
 	''' remove plugin'''
 	if name in pluginlist:
+		#delete all commands from pluginlist
+		for command in pluginlist[name].commands:
+			del(command_list[command])
 		del(pluginlist[name])
 		return 1
 	else:
 		return 0
+
 
 def getPluginList():
 	''' return the loaded plugins '''
@@ -118,6 +136,7 @@ def getPluginList():
 	return ret_string
 
 def isPluginLoaded(name):
+	''' check if a plugin is loaded '''
 	if name in pluginlist:
 		return 1
 	else:
@@ -143,14 +162,19 @@ def presenceCB(conn,prs):
 	allowed_jids = conf.allowed_users
 
 	if msg_type == 'subscribe' :
-		roster = conn.getRoster()
-		# for security reasons there's a maximal roster length
-		if len(roster) < MAX_ROSTER_LENGTH:
-			conn.send(xmpp.Presence(to=who, typ = 'subscribed'))
-			conn.send(xmpp.Presence(to=who, typ = 'subscribe'))
+		if conf.visibiliy == "public" or ((str(user)).split("/"))[0] in allowed_jids:
+			roster = conn.getRoster()
+			# for security reasons there's a maximal roster length
+			if len(roster) < MAX_ROSTER_LENGTH:
+				conn.send(xmpp.Presence(to=who, typ = 'subscribed'))
+				conn.send(xmpp.Presence(to=who, typ = 'subscribe'))
+			else:
+				logger.error("Maximum roster length reached,dropped subscribtion from " + str(user))
+
 
 def messageCB(conn,mess):
 	global pluginlist
+	global command_list
 	text = mess.getBody()
 	user = mess.getFrom()
 
@@ -189,9 +213,16 @@ def messageCB(conn,mess):
 
 
 		if cmd == "help" and len(args)>0:
+			'''print help on plugin or command '''
 			if isPluginLoaded(str(args)):
-				conn.send(xmpp.Message(user, pluginlist[args].help))
-
+				help_string=pluginlist[args].help
+				help_string+="\n\nThe " + args + " plugins provides the following commands: \n"
+				for command in pluginlist[args].commands:
+					help_string+= command + "\t\t" + pluginlist[args].commands[command] + "\n"
+				conn.send(xmpp.Message(user,help_string))
+			elif command_list.has_key(str(args)):
+				help_string= command + "\t\t" + pluginlist[command_list[str(args)]].commands[str(args)] + "\n"
+				conn.send(xmpp.Message(user,help_string))
 
 		if cmd == "plugins":
 			conn.send(xmpp.Message(user, getPluginList()))
@@ -281,7 +312,7 @@ def main():
 			conn.sendInitPresence()
 			GoOn(conn)
 		except Exception,e:
-			print e
-			time.sleep(30)
+			#print e
+			time.sleep(20)
 
 main()

@@ -12,12 +12,17 @@ if [ $1 == "start" ]; then
 	else
 		/usr/sbin/kabbit
 	fi
-
 fi
 
 if [ $1 == "stop" ]; then
-	pid=$(cat "/var/run/kabbit.pid")
-	if [ $pid > 1 ]; then
+	pid=$(cat "/var/run/kabbit.pid" 2> /dev/null)
+
+	if [ ! $pid ]; then
+		exit
+	fi
+
+	pname=$(ps -p $pid --no-headers -o "%c" 2> /dev/null)
+	if [ $pname == "kabbit" ]; then
 		kill $pid
 	fi
 

@@ -12,9 +12,10 @@ class plugin:
 		self.descr="Lyrics Plugin"
 		self.author="Sebastian Moors"
 		self.version="0.1"
-		self.commands="lyr"
+		self.commands={}
+		self.commands["lyr"]="Usage: lyr artist - song"
 		self.auth="public"
-		self.help="Lyr Help"
+		self.help="\n You can search the lyrics database for a song with the command 'lyr artist - song'"
 		'''auth could be public,self or private
 		   private means only the users defined by the allowed_jid's list are allowed_jid
 		   to use the service
