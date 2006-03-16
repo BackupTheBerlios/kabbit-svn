@@ -12,10 +12,6 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-
-
-
 import re
 import sys
 import xmpp
@@ -144,7 +140,7 @@ def isPluginLoaded(name):
 
 def help():
 	#print help
-	help_text = "\nHi, this is kabbit 0.0.4, your server-monitoring Killer Rabbit.";
+	help_text = "\nHi, this is kabbit 0.0.5, your server-monitoring Killer Rabbit.";
 	help_text += "\nCopyright by Sebastian Moors <sebastian.moors@gmail.com> 23.02.2006";
 	help_text += "\nLicensed under GPLv2";
 	help_text += "\n\nAvailable commands: \n\nstatus\t\t\tPrint status informations"
@@ -291,6 +287,7 @@ def main():
 	while stopped_by_sig == 0:
 
 		try:
+			#authres=1
 			conn = xmpp.Client(server, debug=[])
 			conres = conn.connect()
 			if not conres:
@@ -312,7 +309,7 @@ def main():
 			conn.sendInitPresence()
 			GoOn(conn)
 		except Exception,e:
-			#print e
+			print "Exception:" + str(e)
 			time.sleep(20)
 
 main()

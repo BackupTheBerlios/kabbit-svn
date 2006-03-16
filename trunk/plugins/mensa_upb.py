@@ -47,7 +47,7 @@ class plugin:
 				incident=delete_tab.sub("",str(incident))
 				incident=delete_entity.sub("",incident)
 				incident=delete_newline.sub("",str(incident))
-				day_buffer.append(delete_tags.sub("",str(incident)).decode("iso-8859-1"))
+				day_buffer.append(delete_tags.sub("",str(incident)))
 				if counter%3==0:
 					counter=0
 					week_buffer.append(day_buffer)
@@ -55,6 +55,6 @@ class plugin:
 
 			return_string="\n Today's menu:\n\n"
 			for item in week_buffer[day]:
-				return_string += (str(item)) + "\n"
-			print return_string
+				return_string += (str(item)).decode("iso-8859-1") + "\n"
+
 			return return_string
