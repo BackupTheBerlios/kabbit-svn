@@ -74,8 +74,11 @@ class plugin:
 
 		if mess != "lyr":
 			return ""
-		if args.find("-") > 0:
-			artist,title = args.split("-")
+
+		pos = args.find("-")
+		if pos > 0:
+			artist = args[:pos]
+			title = args[pos+1:]
 		else:
 			artist = args
 			title = ""
