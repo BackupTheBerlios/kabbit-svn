@@ -246,6 +246,7 @@ def StepOn(conn):
 def GoOn(conn):
 
     while StepOn(conn):
+	    print "1"
 	    pass
 
 def sighandler(arg1, arg2):

@@ -3,27 +3,25 @@
 # Sebastian Moors 23.02.2006
 # sebastian.moors@gmail.com
 
+binfile=/usr/sbin/kabbit
+pidfile=/var/run/kabbit.pid
+
+if [ ! -x $binfile ]; then
+	exit 1
+fi
+
+if [ ! -f $pidfile ]; then
+	touch pidfile
+fi
+
+if [ ! -w $pidfile ]; then
+	exit 1
+fi
 
 if [ $1 == "start" ]; then
-	pid=$(cat "/var/run/kabbit.pid" 2> /dev/null)
-
-	if [ $(ps aux | grep $pid 2> /dev/null | wc -l) -gt 1 ]; then
-		echo "kabbit is already running with pid $pid"
-	else
-		/usr/sbin/kabbit
-	fi
+	start-stop-daemon -x $binfile  --start --pidfile $pidfile
 fi
 
 if [ $1 == "stop" ]; then
-	pid=$(cat "/var/run/kabbit.pid" 2> /dev/null)
-
-	if [ ! $pid ]; then
-		exit
-	fi
-
-	pname=$(ps -p $pid --no-headers -o "%c" 2> /dev/null)
-	if [ $pname == "kabbit" ]; then
-		kill $pid
-	fi
-
+	start-stop-daemon  --stop --pidfile $pidfile
 fi
