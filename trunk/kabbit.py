@@ -245,9 +245,9 @@ def StepOn(conn):
 
 def GoOn(conn):
 
-    while StepOn(conn):
-	    print "1"
-	    pass
+	while StepOn(conn):
+		if int(time.time())%60:
+			conn.send(' ')
 
 def sighandler(arg1, arg2):
 	""" handler for signals. is used to shutdown pyras """

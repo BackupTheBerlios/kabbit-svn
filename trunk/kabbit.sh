@@ -7,11 +7,12 @@ binfile=/usr/sbin/kabbit
 pidfile=/var/run/kabbit.pid
 
 if [ ! -x $binfile ]; then
+	echo "kabbit binary not found"
 	exit 1
 fi
 
 if [ ! -f $pidfile ]; then
-	touch pidfile
+	touch $pidfile
 fi
 
 if [ ! -w $pidfile ]; then
