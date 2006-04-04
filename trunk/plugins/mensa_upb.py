@@ -26,7 +26,10 @@ class plugin:
 			t = datetime.datetime.now()
 			day=int(t.strftime("%w"))
 			day=day-1
-
+			
+			if day > 6:
+				return "The mensa is closed  today"
+			
 			delete_tags=re.compile("<.*?>")
 			delete_entity=re.compile("&.*;")
 			delete_newline=re.compile("\n")
@@ -54,6 +57,8 @@ class plugin:
 					day_buffer=[]
 
 			return_string="\n Today's menu:\n\n"
+		
+				
 			for item in week_buffer[day]:
 				return_string += (str(item)).decode("iso-8859-1") + "\n"
 
