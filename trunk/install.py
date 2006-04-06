@@ -80,7 +80,7 @@ if not os.path.isfile("/var/run/kabbit.pid"):
 	file_handle.close
 
 if not os.path.isfile("/etc/rc2.d/S90kabbit"):
-	print "Do you want kabbit to start automatically at boottime ?"
+	print "Do you want kabbit to start automatically at boottime ? This will create bootup skripts in /etc/rc2.d/ "
 	if raw_input() == "y":
 		os.link("/etc/init.d/kabbit","/etc/rc2.d/S90kabbit")
 
