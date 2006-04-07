@@ -20,7 +20,7 @@ if [ ! -w $pidfile ]; then
 fi
 
 if [ $1 == "start" ]; then
-	start-stop-daemon -x $binfile  --start --pidfile $pidfile
+	start-stop-daemon -x $binfile  --start --pidfile $pidfile -c kabbit
 fi
 
 if [ $1 == "stop" ]; then
