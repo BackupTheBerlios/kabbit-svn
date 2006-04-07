@@ -21,7 +21,9 @@ class plugin:
 		   to use the service
 		'''
 		self.auth="public"
-
+	
+	def poll(self):
+		pass
 
 
 	def get_lyrics(self,ARTIST,TITLE):

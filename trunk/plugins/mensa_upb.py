@@ -16,6 +16,9 @@ class plugin:
 
 		self.help="mensa plugins"
 		self.auth="private"
+		
+	def poll(self):
+		pass
 
 	def process_message(self,cmd,args):
 		if cmd == "mensa":

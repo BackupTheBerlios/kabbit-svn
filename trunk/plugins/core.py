@@ -25,7 +25,9 @@ class plugin:
 
 		if cmd == "df":
 			return self.df("quiet")
-
+	
+	def poll(self):
+		pass
 
 	def services(self):
 		#print services (process) info
