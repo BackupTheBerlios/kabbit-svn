@@ -21,9 +21,11 @@ import logging
 import time
 
 
+
 #the config module is stored here
 sys.path.append("/usr/lib/kabbit")
 
+from plugin import plugin
 from config import config
 
 
@@ -90,25 +92,27 @@ def get_plugins(nothing,path,files):
 
 def loadPlugin(name):
 	'''load plugin'''
+
 	if isPluginLoaded(name):
 		#reload it
 		unloadPlugin(name)
 
 	try:
 		tmp=(__import__(name,globals(),locals(),[]))
-		tmp_object=tmp.plugin()
+		tmp_object=tmp.kabbit_plugin()
+		if isinstance(tmp_object,plugin):
+			print name + "is valid plugin"
+			#be sure that no command is already in the commandlist
+			for command in tmp_object.commands:
+				if command in command_list:
+					raise Exception
+				else:
+					command_list[command] = name
+			# construct an instance
 
-		#be sure that no command is already in the commandlist
-		for command in tmp_object.commands:
-			if command in command_list:
-				raise Exception
-			else:
-				command_list[command] = name
-		# construct an instance
-
-		pluginlist[name] = tmp_object
-	except Exception:
-		pass
+			pluginlist[name] = tmp_object
+	except Exception,e:
+		print e
 
 
 def unloadPlugin(name):
@@ -248,6 +252,8 @@ def GoOn(conn):
 	while StepOn(conn):
 		if int(time.time())%60:
 			conn.send(' ')
+			for plugin in pluginlist:
+				(pluginlist[plugin]).poll()
 
 def sighandler(arg1, arg2):
 	""" handler for signals. is used to shutdown pyras """

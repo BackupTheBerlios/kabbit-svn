@@ -1,10 +1,18 @@
 #!/usr/bin/python
 # -*- coding: iso-8859-1 -*-
 
-import httplib, urllib, re, sys, string, time
+import httplib
+import urllib
+import re
+import sys
+import string
+import time
+
+sys.path.append("/usr/lib/kabbit")
+from plugin import plugin
 
 
-class plugin:
+class kabbit_plugin(plugin):
 
 	debug=0
 
@@ -21,7 +29,7 @@ class plugin:
 		   to use the service
 		'''
 		self.auth="public"
-	
+
 	def poll(self):
 		pass
 
@@ -173,5 +181,6 @@ class plugin:
 			return "\n" + my_buffer.decode("iso-8859-1")
 
 if __name__=="__main__":
-   plugin2=plugin()
-   print plugin2.process_message("lyr","Die Ärzte - ")
+   plugin2=song_plugin()
+
+

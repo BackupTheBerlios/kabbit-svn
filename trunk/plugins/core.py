@@ -2,12 +2,16 @@
 import os
 import string
 import re
+import sys
 
-class plugin:
+sys.path.append("/usr/lib/kabbit")
+from plugin import plugin
+
+class kabbit_plugin(plugin):
 	def __init__(self):
 		self.descr="Kabbit core plugins"
 		self.author="Sebastian Moors"
-		self.version="0.1b"
+		self.version="0.2"
 		self.commands={}
 		self.commands["status"]="Returns informations about diskspace, uptime etc."
 		self.commands["services"]="The same as ps on your machine"
@@ -25,7 +29,7 @@ class plugin:
 
 		if cmd == "df":
 			return self.df("quiet")
-	
+
 	def poll(self):
 		pass
 
@@ -140,4 +144,6 @@ class plugin:
 		ShellObj = os.popen('/bin/cat /proc/version ')
 		return (ShellObj.read()).strip();
 
+if __name__ == "__main__":
+	pass
 

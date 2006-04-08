@@ -46,21 +46,21 @@ try:
 	pwd_entry=getpwnam("kabbit")
 	kabbit_uid=pwd_entry[2]
 	kabbit_gid=pwd_entry[3]
-	
+
 	if pwd_entry[6] != "":
 		print "WARNING: There is an shell entry for user kabbit in /etc/passwd. This may be a security problem."
-	
-	
+
+
 except KeyError:
-	
+
 	ShellObj = os.popen('/usr/sbin/useradd kabbit')
 	ShellObj.close()
-	
+
 	try:
 		pwd_entry=getpwnam("kabbit")
 		kabbit_uid=pwd_entry[2]
 		kabbit_gid=pwd_entry[3]
-	
+
 	except KeyError:
 		print "Failed to create user 'kabbit'.Aborting."
 		sys.exit(1)
@@ -84,6 +84,7 @@ shutil.copyfile("plugins/core.py","/usr/lib/kabbit/plugins/core.py")
 
 #copy modules
 shutil.copyfile("./config.py","/usr/lib/kabbit/config.py")
+shutil.copyfile("./plugin.py","/usr/lib/kabbit/plugin.py")
 
 #init.d skript
 shutil.copyfile("./kabbit.sh","/etc/init.d/kabbit")
@@ -111,6 +112,7 @@ if not os.path.isfile("/var/run/kabbit.pid"):
 	file_handle = open("/var/run/kabbit.pid", "w")
 	file_handle.write(" ")
 	file_handle.close
+	os.chown("/var/run/kabbit.pid",kabbit_uid,kabbit_gid)
 
 if not os.path.isfile("/etc/rc2.d/S90kabbit"):
 	print "Do you want kabbit to start automatically at boottime ? This will create bootup skripts in /etc/rc2.d/ "
@@ -119,8 +121,8 @@ if not os.path.isfile("/etc/rc2.d/S90kabbit"):
 
 		if not os.path.isfile("/etc/rc2.d/K20kabbit"):
 			os.link("/etc/init.d/kabbit","/etc/rc2.d/K20kabbit")
-			
-			
+
+
 
 
 print "Configuration successful !"
