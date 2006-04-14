@@ -13,6 +13,7 @@ fi
 
 if [ ! -f $pidfile ]; then
 	touch $pidfile
+	chown kabbit:kabbit $pidfile
 fi
 
 if [ ! -w $pidfile ]; then
