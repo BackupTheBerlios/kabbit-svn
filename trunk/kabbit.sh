@@ -3,6 +3,11 @@
 # Sebastian Moors 23.02.2006
 # sebastian.moors@gmail.com
 
+if [ $# -lt 1 ]; then
+	echo "Usage: /etc/init.d/kabbit start | stop"
+	exit 1
+fi
+
 binfile=/usr/sbin/kabbit
 pidfile=/var/run/kabbit.pid
 
@@ -13,14 +18,15 @@ fi
 
 if [ ! -f $pidfile ]; then
 	touch $pidfile
-	chown kabbit:kabbit $pidfile
 fi
 
 if [ ! -w $pidfile ]; then
 	exit 1
 fi
 
-if [ $1 == "start" ]; then
+chown kabbit $pidfile
+
+if [  $1 == "start" ]; then
 	start-stop-daemon -x $binfile  --start --pidfile $pidfile -c kabbit
 fi
 
