@@ -16,7 +16,7 @@ class kabbit_plugin(plugin):
 
 	debug=0
 
-	def __init__(self):
+	def __init__(self,config):
 		self.descr="Lyrics Plugin"
 		self.author="Sebastian Moors"
 		self.version="0.1"
@@ -30,7 +30,7 @@ class kabbit_plugin(plugin):
 		'''
 		self.auth="public"
 
-	def poll(self):
+	def poll(self,connection):
 		pass
 
 

@@ -8,7 +8,7 @@ sys.path.append("/usr/lib/kabbit")
 from plugin import plugin
 
 class kabbit_plugin(plugin):
-	def __init__(self):
+	def __init__(self,config):
 		self.descr="Kabbit core plugins"
 		self.author="Sebastian Moors"
 		self.version="0.2"
@@ -30,8 +30,6 @@ class kabbit_plugin(plugin):
 		if cmd == "df":
 			return self.df("quiet")
 
-	def poll(self):
-		pass
 
 	def services(self):
 		#print services (process) info

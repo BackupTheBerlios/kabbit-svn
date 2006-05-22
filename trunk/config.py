@@ -20,7 +20,21 @@ class config:
 		self.log_file=config.get("main","log_file")
 		self.log_level=config.get("main","log_level")
 
+		self.debug = 0
+
 		if config.get("jabber","allowed_users").find(",") >= 0:
 			self.allowed_users=config.get("jabber","allowed_users").split(",")
 		else:
 			self.allowed_users.append(config.get("jabber","allowed_users"))
+
+
+		try:
+			long_opts=["debug"]
+			opts, args = getopt.getopt(sys.argv[1:], "d",long_opts )
+		except getopt.GetoptError:
+			sys.exit(2)
+
+		for option, argument in opts:
+			if option in ("-d", "--debug"):
+				self.debug=1
+

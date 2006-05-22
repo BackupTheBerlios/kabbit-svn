@@ -29,8 +29,9 @@ from plugin import plugin
 from config import config
 
 
-
 conf=config()
+
+DEBUG = conf.debug
 
 stopped_by_sig=0
 
@@ -99,9 +100,9 @@ def loadPlugin(name):
 
 	try:
 		tmp=(__import__(name,globals(),locals(),[]))
-		tmp_object=tmp.kabbit_plugin()
+		tmp_object=tmp.kabbit_plugin(conf)
 		if isinstance(tmp_object,plugin):
-			print name + "is valid plugin"
+			if DEBUG:	print name + " is a valid plugin"
 			#be sure that no command is already in the commandlist
 			for command in tmp_object.commands:
 				if command in command_list:
@@ -112,7 +113,7 @@ def loadPlugin(name):
 
 			pluginlist[name] = tmp_object
 	except Exception,e:
-		print e
+		if DEBUG:	print e
 
 
 def unloadPlugin(name):
@@ -253,7 +254,7 @@ def GoOn(conn):
 		if int(time.time())%60:
 			conn.send(' ')
 			for plugin in pluginlist:
-				(pluginlist[plugin]).poll()
+				(pluginlist[plugin]).poll(conn)
 
 def sighandler(arg1, arg2):
 	""" handler for signals. is used to shutdown pyras """
@@ -297,26 +298,40 @@ def main():
 			#authres=1
 			conn = xmpp.Client(server, debug=[])
 			conres = conn.connect()
+			if DEBUG: print "Conres:",conres
+
+
 			if not conres:
+				if DEBUG: print "Unable to connect to server %s!"%server
 				logger.error("Unable to connect to server %s!"%server)
 				sys.exit(1)
+
 			if conres <> 'tls':
+				if DEBUG: print 'Warning: unable to estabilish secure connection - TLS failed!'
 				logger.warning('Warning: unable to estabilish secure connection - TLS failed!')
-				authres = conn.auth(user,password)
+			authres = conn.auth(user,password)
+
+
 			if not authres:
+				if DEBUG: print "Unable to authorize on %s - check login/password."%server
 				logger.error("Unable to authorize on %s - check login/password."%server)
 				sys.exit(1)
+
+
+
 			if authres <> 'sasl':
+				if DEBUG: print "Warning: unable to perform SASL auth os " + server + ". Old authentication method used!"
 				logger.warning("Warning: unable to perform SASL auth os " + server + ". Old authentication method used!")
+
+			#register our handlers
 			conn.RegisterHandler('message', messageCB)
 			conn.RegisterHandler('presence', presenceCB)
 
 			roster = conn.getRoster()
-			#print roster.getItems()
 			conn.sendInitPresence()
 			GoOn(conn)
 		except Exception,e:
-			print "Exception:" + str(e)
+			if DEBUG:	print "Exception:" + str(e)
 			time.sleep(20)
 
 main()
