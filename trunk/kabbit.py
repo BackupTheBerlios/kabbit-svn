@@ -1,3 +1,4 @@
+########################################################################
 #!/usr/bin/python
 # -*- coding: iso-8859-1 -*-
 # kabbit.py by Sebastian Moors
@@ -12,6 +13,8 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
+####################################################################
+
 import re
 import sys
 import xmpp
@@ -69,8 +72,8 @@ else:
 
 ##########################################################
 # 			Plugin manager			 #
-# A plugin has to be a class named plugin implenting the #
-# process_message(mess,args) method and the following    #
+# A plugin has to be a class named plugin implementing   #
+#the process_message(mess,args) method and the following #
 # properties:						 #
 #							 #
 # -descr	A short plugin description               #
@@ -145,7 +148,7 @@ def isPluginLoaded(name):
 
 def help():
 	#print help
-	help_text = "\nHi, this is kabbit 0.0.5, your server-monitoring Killer Rabbit.";
+	help_text = "\nHi, this is kabbit 0.0.6, your server-monitoring Killer Rabbit.";
 	help_text += "\nCopyright by Sebastian Moors <sebastian.moors@gmail.com> 23.02.2006";
 	help_text += "\nLicensed under GPLv2";
 	help_text += "\n\nAvailable commands: \n\nstatus\t\t\tPrint status informations"
@@ -210,7 +213,7 @@ def messageCB(conn,mess):
 			unloadPlugin(args)
 
 		if cmd == "help" and len(args)==0:
-			conn.send(xmpp.Message(user, help()))
+			conn.send(xmpp.protocol.Message(user, help()))
 
 
 		if cmd == "help" and len(args)>0:
@@ -223,7 +226,7 @@ def messageCB(conn,mess):
 				conn.send(xmpp.Message(user,help_string))
 			elif command_list.has_key(str(args)):
 				help_string= command + "\t\t" + pluginlist[command_list[str(args)]].commands[str(args)] + "\n"
-				conn.send(xmpp.Message(user,help_string))
+				conn.send(xmpp.protocol.Message(user,help_string))
 
 		if cmd == "plugins":
 			conn.send(xmpp.Message(user, getPluginList()))
@@ -251,7 +254,8 @@ def StepOn(conn):
 def GoOn(conn):
 
 	while StepOn(conn):
-		if int(time.time())%60:
+		if int(time.time())%60 == 0:
+			print "poll"
 			conn.send(' ')
 			for plugin in pluginlist:
 				(pluginlist[plugin]).poll(conn)

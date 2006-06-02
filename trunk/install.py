@@ -80,7 +80,7 @@ if not os.path.isdir("/usr/lib/kabbit/plugins"):
 #copy plugins
 shutil.copyfile("plugins/song.py","/usr/lib/kabbit/plugins/song.py")
 shutil.copyfile("plugins/core.py","/usr/lib/kabbit/plugins/core.py")
-
+shutil.copyfile("plugins/mail_notify.py","/usr/lib/kabbit/plugins/mail_notify.py")
 
 #copy modules
 shutil.copyfile("./config.py","/usr/lib/kabbit/config.py")

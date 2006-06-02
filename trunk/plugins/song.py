@@ -120,7 +120,6 @@ class kabbit_plugin(plugin):
 
 			r=re.compile("<br><br>.*")
 			my_buffer=r.sub("",my_buffer)
-			#my_buffer=(my_buffer.split("<form .*>"))[0]
 
 
 			r=re.compile("</font>")

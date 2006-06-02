@@ -9,6 +9,15 @@ import poplib
 import time
 from string import strip
 
+###############################################
+#	TODO:
+#		- register/unregister
+#		- check file permissions
+#		- check if user is online
+#		- authentication
+# 		- remove allowed_jids / rename to admin_jids (?)
+# 		
+
 class email_account:
 	def __init__(self,jid,acc_type,server,username,pwd):
 		self.jid=jid
@@ -22,13 +31,13 @@ class email_account:
 
 class kabbit_plugin(plugin):
 	def __init__(self,config):
-		self.descr="Mail Notifier"
+		self.descr="pop/imap Mail Notifier"
 		self.author="Sebastian Moors"
 		self.version="0.1"
 		self.commands={}
 		self.commands["unregister"]="turn off notification"
 
-		self.help="mensa plugins"
+		self.help="This Plugin sends an notification if new mail arrives"
 		self.auth="private"
 
 
@@ -37,20 +46,18 @@ class kabbit_plugin(plugin):
 		#seconds between 2 logins
 		self.delta = 200
 
-		#number of messages in our mailbox
-		#self.msg_count[jid]=number
-		self.msg_count={}
-		self.timeouts={}
-
-
-		user =  "mauser@jabber.ccc.de"
-		self.timeouts[user]=0
-		self.msg_count[user]=0
-
 		self.user_container = []
-
+		
+		self.pop_ssl_warn=False;
+		
 		#read our configuration file
 		file = open("/etc/kabbit_mail.conf","r")
+		
+		# 
+		# config file syntax: jid:accout_type:server:username:password:active
+		#
+		#
+		
 		f=file.readline()
 		while(f):
 			jid=strip(f.split(":")[0])
@@ -68,55 +75,72 @@ class kabbit_plugin(plugin):
 	def poll(self,con):
 		for e in self.user_container:
 			if self.check_mail(e) == True:
-				con.send(xmpp.Message(e.jid,"You have new Mail @ " + e.server))
+				con.send(xmpp.protocol.Message(e.jid,"You have new Mail @ " + e.server))
 
-		'''
-		user =  "mauser@jabber.ccc.de"
-		if self.timeouts[user] == 0 or (time.time() - self.timeouts[user]) > 300:
-			try:
-				M = poplib.POP3('pop.gmx.de')
-				M.user("sebastian.moors@gmx.de")
-				M.pass_("rotten")
-				numMessages = len(M.list()[1])
-				print numMessages
-
-				self.timeouts[user] = time.time()
-				if self.msg_count[user] != 0 and self.msg_count[user] <> numMessages:
-					#con.send(xmpp.Message(user,"You have new Mail"))
-					print "you have new mail"
-				self.msg_count[user]=numMessages
-				#for i in range(numMessages):
-				#	for j in M.retr(i+1)[1]:
-				#		print j
-			except Exception,e:
-				print "some error occured"
-		'''
 
 	def check_mail(self,e):
-		print "checking mail"
-		print e.timeout
-		#try:
-		if e.timeout == 0 or (time.time() - e.timeout) > self.delta:
-			print "in if"
-			print e.server
-			print e.username
-			print e.pwd
-			M = poplib.POP3(strip(e.server))
-			M.user(e.username)
-			M.pass_(e.pwd)
-			numMessages = len(M.list()[1])
-			print e.username + ":" + str(numMessages)
-
-			e.timeout = time.time()
-			if e.msg_count != 0 and e.msg_count <> numMessages:
-				e.msg_count=numMessages
-				return True
-			else:
+		if e.acc_type == "pop":
+			try:
+				if e.timeout == 0 or (time.time() - e.timeout) > self.delta:
+					M = poplib.POP3(strip(e.server))
+					M.user(e.username)
+					M.pass_(e.pwd)
+					numMessages = len(M.list()[1])
+					
+		
+					e.timeout = time.time()
+					if e.msg_count != 0 and e.msg_count <> numMessages:
+						e.msg_count=numMessages
+						return True
+					else:
+						
+						if e.msg_count==0:
+							e.msg_count=numMessages
+		
+						return False
+	
+			except Exception,ex:
+				print "some error occured" + str(ex)
 				return False
-
-		#except Exception,e:
-		#	print "some error occured" + str(e)
-		#	return False
+					
+		
+		#check once if ssl is available and log it
+		if e.acc_type == "pop_ssl" and float(sys.version[0:3]) < 2.4 and self.pop_ssl_warn==False and self.conf.debug:
+			self.pop_ssl_warn=True;
+			print "pop_ssl requested, but python version < 2.4 found. Please upgrade to a version >= 2.4 "
+		
+		if e.acc_type == "pop_ssl" and float(sys.version[0:3]) >= 2.4:
+			
+			#
+			# poplib ssl support must be enabled
+			# you have to use a python version >= 2.4
+			#
+			
+			try:
+				if e.timeout == 0 or (time.time() - e.timeout) > self.delta:
+					M = poplib.POP3_SSL(strip(e.server))
+					M.user(e.username)
+					M.pass_(e.pwd)
+					numMessages = len(M.list()[1])
+			
+		
+					e.timeout = time.time()
+					if e.msg_count != 0 and e.msg_count <> numMessages:
+						e.msg_count=numMessages
+						return True
+					else:
+						
+						if e.msg_count==0:
+							e.msg_count=numMessages
+		
+						return False
+	
+			except Exception,e:
+				print "some error occured" + str(e)
+				return False
+			
+					
+					
 
 	def process_message(self,cmd,args):
 		if cmd == "test":

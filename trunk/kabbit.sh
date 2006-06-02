@@ -3,7 +3,7 @@
 # Sebastian Moors 23.02.2006
 # sebastian.moors@gmail.com
 
-if [ $# -lt 1 ]; then
+if [ $# -ne 1 ]; then
 	echo "Usage: /etc/init.d/kabbit start | stop"
 	exit 1
 fi
