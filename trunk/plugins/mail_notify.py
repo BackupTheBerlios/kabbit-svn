@@ -8,6 +8,7 @@ import xmpp
 import poplib
 import time
 from string import strip
+from os import stat
 
 ###############################################
 #	TODO:
@@ -16,7 +17,7 @@ from string import strip
 #		- check if user is online
 #		- authentication
 # 		- remove allowed_jids / rename to admin_jids (?)
-# 		
+#
 
 class email_account:
 	def __init__(self,jid,acc_type,server,username,pwd):
@@ -47,17 +48,24 @@ class kabbit_plugin(plugin):
 		self.delta = 200
 
 		self.user_container = []
-		
+
 		self.pop_ssl_warn=False;
-		
+
+
+		#check if configuration is just readeable for user "kabbit"
+		filename="/etc/kabbit_mail.conf"
+		mode= oct(stat(filename).st_mode)
+		if mode > 700:
+			print "WARNING: insecure filepermissions for " + filename
+
 		#read our configuration file
 		file = open("/etc/kabbit_mail.conf","r")
-		
-		# 
+
+		#
 		# config file syntax: jid:accout_type:server:username:password:active
 		#
 		#
-		
+
 		f=file.readline()
 		while(f):
 			jid=strip(f.split(":")[0])
@@ -86,61 +94,61 @@ class kabbit_plugin(plugin):
 					M.user(e.username)
 					M.pass_(e.pwd)
 					numMessages = len(M.list()[1])
-					
-		
+
+
 					e.timeout = time.time()
 					if e.msg_count != 0 and e.msg_count <> numMessages:
 						e.msg_count=numMessages
 						return True
 					else:
-						
+
 						if e.msg_count==0:
 							e.msg_count=numMessages
-		
+
 						return False
-	
+
 			except Exception,ex:
 				print "some error occured" + str(ex)
 				return False
-					
-		
+
+
 		#check once if ssl is available and log it
 		if e.acc_type == "pop_ssl" and float(sys.version[0:3]) < 2.4 and self.pop_ssl_warn==False and self.conf.debug:
 			self.pop_ssl_warn=True;
 			print "pop_ssl requested, but python version < 2.4 found. Please upgrade to a version >= 2.4 "
-		
+
 		if e.acc_type == "pop_ssl" and float(sys.version[0:3]) >= 2.4:
-			
+
 			#
 			# poplib ssl support must be enabled
 			# you have to use a python version >= 2.4
 			#
-			
+
 			try:
 				if e.timeout == 0 or (time.time() - e.timeout) > self.delta:
 					M = poplib.POP3_SSL(strip(e.server))
 					M.user(e.username)
 					M.pass_(e.pwd)
 					numMessages = len(M.list()[1])
-			
-		
+
+
 					e.timeout = time.time()
 					if e.msg_count != 0 and e.msg_count <> numMessages:
 						e.msg_count=numMessages
 						return True
 					else:
-						
+
 						if e.msg_count==0:
 							e.msg_count=numMessages
-		
+
 						return False
-	
+
 			except Exception,e:
 				print "some error occured" + str(e)
 				return False
-			
-					
-					
+
+
+
 
 	def process_message(self,cmd,args):
 		if cmd == "test":

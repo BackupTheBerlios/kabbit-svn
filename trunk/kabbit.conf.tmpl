@@ -1,16 +1,22 @@
 [jabber]
+
 # Jabber ID and password for kabbit
 bot_jid=bot@example.com
 bot_password=secret
 visibility=private
-# This users will be allowed to use kabbit
+
+
+# This users will be allowed to use privileged functions,
+# such as load/remove plugins
 # You can seperate JID's by commas.
 
-allowed_users=user1@example.com,user2@example.com
+admin_users=user1@example.com,user2@example.com
 
 [main]
 
 #valid options are: warning and error
 log_level=warning
 
-log_file=/var/log/kabbit.log
+log_file=/var/log/kabbit/kabbit.log
+
+access_log = /var/log/kabbit/access.log

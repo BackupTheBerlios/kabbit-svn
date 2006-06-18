@@ -9,7 +9,7 @@ class config:
 	def __init__(self):
 		"""Class for Configuration Managment"""
 		config = ConfigParser.ConfigParser()
-		self.allowed_users=[]
+		self.admin_users=[]
 		config.readfp(open('/etc/kabbit.conf'))
 
 		self.jid=config.get("jabber","bot_jid")
@@ -22,10 +22,10 @@ class config:
 
 		self.debug = 0
 
-		if config.get("jabber","allowed_users").find(",") >= 0:
-			self.allowed_users=config.get("jabber","allowed_users").split(",")
+		if config.get("jabber","admin_users").find(",") >= 0:
+			self.admin_users=config.get("jabber","admin_users").split(",")
 		else:
-			self.allowed_users.append(config.get("jabber","allowed_users"))
+			self.admin_users.append(config.get("jabber","admin_users"))
 
 
 		try:

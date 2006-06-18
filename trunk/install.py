@@ -25,6 +25,8 @@ import os
 
 LIB_DIR="/usr/lib/kabbit"
 
+LOG_DIR="/var/log/kabbit"
+
 print "Welcome to the kabbit Installer.This is free software,you can (re)distribute it under the terms of the GPL\n";
 
 if os.geteuid() <> 0:
@@ -85,6 +87,7 @@ shutil.copyfile("plugins/mail_notify.py","/usr/lib/kabbit/plugins/mail_notify.py
 #copy modules
 shutil.copyfile("./config.py","/usr/lib/kabbit/config.py")
 shutil.copyfile("./plugin.py","/usr/lib/kabbit/plugin.py")
+shutil.copyfile("./kabbit_log.py","/usr/lib/kabbit/kabbit_log.py")
 
 #init.d skript
 shutil.copyfile("./kabbit.sh","/etc/init.d/kabbit")
@@ -113,6 +116,11 @@ if not os.path.isfile("/var/run/kabbit.pid"):
 	file_handle.write(" ")
 	file_handle.close
 	os.chown("/var/run/kabbit.pid",kabbit_uid,kabbit_gid)
+
+#create logging directory
+if not os.path.isdir(LOG_DIR):
+	os.mkdir(LOG_DIR)
+	os.chown(LOG_DIR,kabbit_uid,kabbit_gid)
 
 if not os.path.isfile("/etc/rc2.d/S90kabbit"):
 	print "Do you want kabbit to start automatically at boottime ? This will create bootup skripts in /etc/rc2.d/ "

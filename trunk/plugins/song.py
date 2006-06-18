@@ -179,7 +179,5 @@ class kabbit_plugin(plugin):
 				return "No song found."
 			return "\n" + my_buffer.decode("iso-8859-1")
 
-if __name__=="__main__":
-   plugin2=song_plugin()
 
 

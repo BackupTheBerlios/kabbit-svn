@@ -1,4 +1,3 @@
-########################################################################
 #!/usr/bin/python
 # -*- coding: iso-8859-1 -*-
 # kabbit.py by Sebastian Moors
@@ -14,7 +13,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 ####################################################################
-
 import re
 import sys
 import xmpp
@@ -22,17 +20,23 @@ import os
 import signal
 import logging
 import time
+import threading
 
-
+from Queue import Queue
+from string import strip
+from os import stat
 
 #the config module is stored here
 sys.path.append("/usr/lib/kabbit")
 
 from plugin import plugin
 from config import config
-
+from kabbit_log import kabbit_logger
 
 conf=config()
+
+access_logger = kabbit_logger("/var/log/kabbit/access.log")
+
 
 DEBUG = conf.debug
 
@@ -40,9 +44,18 @@ stopped_by_sig=0
 
 pluginlist = {}
 
+send_queue = Queue()
+
+
 # command_list['status'] = "core"
 # command_list['cmd'] = "pluginname"
 command_list={}
+
+#register builtin commands
+command_list['plugins'] = "builtin"
+command_list['help'] = "builtin"
+command_list['load'] = "builtin"
+command_list['unload'] = "builtin"
 
 r=re.compile(".*\.py$")
 
@@ -70,6 +83,13 @@ else:
 	logger.setLevel(logging.ERROR)
 
 
+
+#data structure used in message queing
+class kabbit_message:
+	def __init__(self,user,msg):
+		self.user=user
+		self.msg=msg
+
 ##########################################################
 # 			Plugin manager			 #
 # A plugin has to be a class named plugin implementing   #
@@ -86,6 +106,7 @@ else:
 
 
 
+#load available plugins
 def get_plugins(nothing,path,files):
 	global pluginlist
 	for f in files:
@@ -148,7 +169,7 @@ def isPluginLoaded(name):
 
 def help():
 	#print help
-	help_text = "\nHi, this is kabbit 0.0.6, your server-monitoring Killer Rabbit.";
+	help_text = "\nHi, this is kabbit 0.0.7, your server-monitoring Killer Rabbit.";
 	help_text += "\nCopyright by Sebastian Moors <sebastian.moors@gmail.com> 23.02.2006";
 	help_text += "\nLicensed under GPLv2";
 	help_text += "\n\nAvailable commands: \n\nstatus\t\t\tPrint status informations"
@@ -159,11 +180,26 @@ def help():
 	help_text += "\nhelp\t\t\t\t This text"
 	return help_text
 
+
+
+
+
+def send_msg(conn,user,msg):
+	#conn.send(xmpp.protocol.Message(user,msg,"chat"))
+	msg=str(msg).strip()
+	if msg.strip() != "None" and len(msg) > 0:
+		send_queue.put(kabbit_message(user,msg))
+
+
+
+
+
+
 def presenceCB(conn,prs):
 	'''callback handler for presence actions'''
 	msg_type = prs.getType()
 	who = prs.getFrom().getStripped()
-	allowed_jids = conf.allowed_users
+	allowed_jids = conf.admin_users
 
 	if msg_type == 'subscribe' :
 		if conf.visibiliy == "public" or ((str(user)).split("/"))[0] in allowed_jids:
@@ -176,6 +212,7 @@ def presenceCB(conn,prs):
 				logger.error("Maximum roster length reached,dropped subscribtion from " + str(user))
 
 
+
 def messageCB(conn,mess):
 	global pluginlist
 	global command_list
@@ -183,7 +220,7 @@ def messageCB(conn,mess):
 	user = mess.getFrom()
 
 
-	allowed_jids = conf.allowed_users
+	allowed_jids = conf.admin_users
 
 	auth=0
 
@@ -196,12 +233,21 @@ def messageCB(conn,mess):
 		auth=1
 
 
+
 	if text.find(' ')+1:
 		command,args = text.split(' ', 1)
 	else:
 		command,args = text, ''
 
+	#convert incoming commands to lowercase letters
 	cmd = command.lower()
+
+	#log the command
+	access_logger.access_log("in",str(user),str(command))
+
+	if not cmd in command_list:
+		access_logger.access_log("out",str(user),str("unknown command:" + cmd))
+		return
 
 	if auth == 1:
 
@@ -213,7 +259,8 @@ def messageCB(conn,mess):
 			unloadPlugin(args)
 
 		if cmd == "help" and len(args)==0:
-			conn.send(xmpp.protocol.Message(user, help()))
+			#conn.send(xmpp.protocol.Message(user, help()))
+			send_msg(conn,user,help())
 
 
 		if cmd == "help" and len(args)>0:
@@ -223,25 +270,26 @@ def messageCB(conn,mess):
 				help_string+="\n\nThe " + args + " plugins provides the following commands: \n"
 				for command in pluginlist[args].commands:
 					help_string+= command + "\t\t" + pluginlist[args].commands[command] + "\n"
-				conn.send(xmpp.Message(user,help_string))
+				send_msg(conn,user,help_string)
 			elif command_list.has_key(str(args)):
 				help_string= command + "\t\t" + pluginlist[command_list[str(args)]].commands[str(args)] + "\n"
-				conn.send(xmpp.protocol.Message(user,help_string))
+				send_msg(conn,user,help_string)
 
 		if cmd == "plugins":
-			conn.send(xmpp.Message(user, getPluginList()))
+			send_msg(conn,user,getPluginList())
+
+
 
 	for plugin in pluginlist:
 		if pluginlist[plugin].auth == "public":
-			conn.send(xmpp.Message(user, pluginlist[plugin].process_message(cmd,args)))
+			send_msg(conn,user,pluginlist[plugin].process_message(cmd,args))
 
 		if pluginlist[plugin].auth == "self":
 			if pluginlist[plugin].authenticate(user):
-				conn.send(xmpp.Message(user, pluginlist[plugin].process_message(cmd,args)))
+				send_msg(user, pluginlist[plugin].process_message(cmd,args))
 
 		if pluginlist[plugin].auth == "private" and auth == 1:
-			conn.send(xmpp.Message(user, pluginlist[plugin].process_message(cmd,args)))
-
+			send_msg(conn,user, pluginlist[plugin].process_message(cmd,args))
 
 
 def StepOn(conn):
@@ -252,16 +300,17 @@ def StepOn(conn):
     return 1
 
 def GoOn(conn):
-
 	while StepOn(conn):
+
+
+
 		if int(time.time())%60 == 0:
-			print "poll"
 			conn.send(' ')
+
 			for plugin in pluginlist:
 				(pluginlist[plugin]).poll(conn)
 
 def sighandler(arg1, arg2):
-	""" handler for signals. is used to shutdown pyras """
 	global stopped_by_sig
 
 	file_handle = open("/var/run/kabbit.pid", "w")
@@ -269,6 +318,46 @@ def sighandler(arg1, arg2):
 	file_handle.close
 
 	stopped_by_sig = 1
+
+
+class queue_daemon(threading.Thread):
+	def __init__(self):
+		threading.Thread.__init__(self)
+		self.con=""
+	def setCon(self,con):
+		# set actual connection
+		self.con = con
+
+	def run(self):
+		global stopped_by_sig
+		while(stopped_by_sig==0):
+			time.sleep(1)
+		        if send_queue.qsize() > 0 and self.con != "":
+				k_msg=send_queue.get()
+				self.con.send(xmpp.protocol.Message(k_msg.user,k_msg.msg,"chat"))
+				access_logger.access_log("out",str(k_msg.user),"*")
+
+
+
+class roster_watcher(threading.Thread):
+	def __init__(self):
+		threading.Thread.__init__(self)
+		self.con=""
+
+	def setCon(self,con):
+		self.con = con
+
+	def run(self):
+		roster = self.con.getRoster()
+		while(stopped_by_sig==0):
+			if self.con != "":
+				time.sleep(1)
+				roster_it = roster.getItems()
+				print roster_it[2]
+				print roster.getStatus(roster_it[2])
+				print roster.getSubscription(roster_it[2])
+
+
 
 
 def main():
@@ -283,6 +372,12 @@ def main():
 		del file_handle
 	else:
 		sys.exit(0)
+
+	rw=roster_watcher()
+
+	q=queue_daemon()
+	q.start()
+
 
 	#initalize our plugins
 	sys.path.append(os.path.abspath('/usr/lib/kabbit/plugins/'))
@@ -331,11 +426,19 @@ def main():
 			conn.RegisterHandler('message', messageCB)
 			conn.RegisterHandler('presence', presenceCB)
 
-			roster = conn.getRoster()
+
 			conn.sendInitPresence()
+
+
+			q.setCon(conn)
+			rw.setCon(conn)
+			rw.run()
 			GoOn(conn)
+
+
 		except Exception,e:
 			if DEBUG:	print "Exception:" + str(e)
-			time.sleep(20)
+			q.setCon("")
+			time.sleep(8)
 
 main()
