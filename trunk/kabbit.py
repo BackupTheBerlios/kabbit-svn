@@ -198,7 +198,25 @@ def send_msg(conn,user,msg):
 def presenceCB(conn,prs):
 	'''callback handler for presence actions'''
 	msg_type = prs.getType()
+
+	status=str(prs.getStatus())
+	show=str(prs.getShow())
+
 	who = prs.getFrom().getStripped()
+
+	if(strip(status)=="" or strip(status)=="Logged out"):
+		print who + " seems to be offline now"
+	else:
+		print who + " seems to be online now"
+		print status
+
+	#print "status:" + status
+	#print "Show: " + show
+	#print "type:" + str(msg_type) + "\n"
+
+
+
+
 	allowed_jids = conf.admin_users
 
 	if msg_type == 'subscribe' :
@@ -344,24 +362,30 @@ class roster_watcher(threading.Thread):
 		threading.Thread.__init__(self)
 		self.con=""
 
+
 	def setCon(self,con):
 		self.con = con
 
 	def run(self):
 		roster = self.con.getRoster()
-		while(stopped_by_sig==0):
-			if self.con != "":
-				time.sleep(1)
-				roster_it = roster.getItems()
-				print roster_it[2]
-				print roster.getStatus(roster_it[2])
-				print roster.getSubscription(roster_it[2])
+
+
+	def setStatus(jid,status):
+		#set the current status for contact jid
+
+		#while(stopped_by_sig==0):
+		#	if self.con != "":
+		#		time.sleep(1)
+				#roster_it = roster.getItems()
+				#pint roster_it[2]
+				#print roster.getStatus(roster_it[2])
+				#print roster.getSubscription(roster_it[2])
 
 
 
 
 def main():
-
+	print "k"
 	pid = os.fork()
 	if pid == 0:
 
@@ -395,7 +419,7 @@ def main():
 
 		try:
 			#authres=1
-			conn = xmpp.Client(server, debug=[])
+			conn = xmpp.Client(server,debug=[""])
 			conres = conn.connect()
 			if DEBUG: print "Conres:",conres
 
@@ -432,7 +456,7 @@ def main():
 
 			q.setCon(conn)
 			rw.setCon(conn)
-			rw.run()
+			#rw.run()
 			GoOn(conn)
 
 
