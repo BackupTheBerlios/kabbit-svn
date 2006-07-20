@@ -194,150 +194,6 @@ def send_msg(conn,user,msg):
 
 
 
-
-def presenceCB(conn,prs):
-	'''callback handler for presence actions'''
-	msg_type = prs.getType()
-
-	status=str(prs.getStatus())
-	show=str(prs.getShow())
-
-	who = prs.getFrom().getStripped()
-
-	if(strip(status)=="" or strip(status)=="Logged out"):
-		print who + " seems to be offline now"
-	else:
-		print who + " seems to be online now"
-		print status
-
-	#print "status:" + status
-	#print "Show: " + show
-	#print "type:" + str(msg_type) + "\n"
-
-
-
-
-	allowed_jids = conf.admin_users
-
-	if msg_type == 'subscribe' :
-		if conf.visibiliy == "public" or ((str(user)).split("/"))[0] in allowed_jids:
-			roster = conn.getRoster()
-			# for security reasons there's a maximal roster length
-			if len(roster) < MAX_ROSTER_LENGTH:
-				conn.send(xmpp.Presence(to=who, typ = 'subscribed'))
-				conn.send(xmpp.Presence(to=who, typ = 'subscribe'))
-			else:
-				logger.error("Maximum roster length reached,dropped subscribtion from " + str(user))
-
-
-
-def messageCB(conn,mess):
-	global pluginlist
-	global command_list
-	text = mess.getBody()
-	user = mess.getFrom()
-
-
-	allowed_jids = conf.admin_users
-
-	auth=0
-
-	if ((str(user)).split("/"))[0] not in allowed_jids:
-		#exit if user is not allowed to use our bot
-		#logger.warning("Failed login from " + ((str(user)).split("/"))[0])
-		#return
-		pass
-	else:
-		auth=1
-
-
-
-	if text.find(' ')+1:
-		command,args = text.split(' ', 1)
-	else:
-		command,args = text, ''
-
-	#convert incoming commands to lowercase letters
-	cmd = command.lower()
-
-	#log the command
-	access_logger.access_log("in",str(user),str(command))
-
-	if not cmd in command_list:
-		access_logger.access_log("out",str(user),str("unknown command:" + cmd))
-		return
-
-	if auth == 1:
-
-
-		if cmd == "load":
-			loadPlugin(args)
-
-		if cmd == "unload":
-			unloadPlugin(args)
-
-		if cmd == "help" and len(args)==0:
-			#conn.send(xmpp.protocol.Message(user, help()))
-			send_msg(conn,user,help())
-
-
-		if cmd == "help" and len(args)>0:
-			'''print help on plugin or command '''
-			if isPluginLoaded(str(args)):
-				help_string=pluginlist[args].help
-				help_string+="\n\nThe " + args + " plugins provides the following commands: \n"
-				for command in pluginlist[args].commands:
-					help_string+= command + "\t\t" + pluginlist[args].commands[command] + "\n"
-				send_msg(conn,user,help_string)
-			elif command_list.has_key(str(args)):
-				help_string= command + "\t\t" + pluginlist[command_list[str(args)]].commands[str(args)] + "\n"
-				send_msg(conn,user,help_string)
-
-		if cmd == "plugins":
-			send_msg(conn,user,getPluginList())
-
-
-
-	for plugin in pluginlist:
-		if pluginlist[plugin].auth == "public":
-			send_msg(conn,user,pluginlist[plugin].process_message(cmd,args))
-
-		if pluginlist[plugin].auth == "self":
-			if pluginlist[plugin].authenticate(user):
-				send_msg(user, pluginlist[plugin].process_message(cmd,args))
-
-		if pluginlist[plugin].auth == "private" and auth == 1:
-			send_msg(conn,user, pluginlist[plugin].process_message(cmd,args))
-
-
-def StepOn(conn):
-    try:
-        conn.Process(1)
-    except KeyboardInterrupt:
-	    return 0
-    return 1
-
-def GoOn(conn):
-	while StepOn(conn):
-
-
-
-		if int(time.time())%60 == 0:
-			conn.send(' ')
-
-			for plugin in pluginlist:
-				(pluginlist[plugin]).poll(conn)
-
-def sighandler(arg1, arg2):
-	global stopped_by_sig
-
-	file_handle = open("/var/run/kabbit.pid", "w")
-	file_handle.write(" ")
-	file_handle.close
-
-	stopped_by_sig = 1
-
-
 class queue_daemon(threading.Thread):
 	def __init__(self):
 		threading.Thread.__init__(self)
@@ -371,21 +227,216 @@ class roster_watcher(threading.Thread):
 
 
 	def setStatus(jid,status):
+		pass
 		#set the current status for contact jid
 
-		#while(stopped_by_sig==0):
-		#	if self.con != "":
-		#		time.sleep(1)
-				#roster_it = roster.getItems()
-				#pint roster_it[2]
-				#print roster.getStatus(roster_it[2])
-				#print roster.getSubscription(roster_it[2])
+
+
+
+class kabbit_bot:
+
+	def __init__(self,queue_daemon,roster_watcher):
+		self.q=queue_daemon
+		self.rw=roster_watcher
+
+	def StepOn(self,conn):
+		try:
+			conn.Process(1)
+		except KeyboardInterrupt:
+			return 0
+		return 1
+
+	def GoOn(self,conn):
+		while self.StepOn(conn):
+			if int(time.time())%60 == 0:
+				conn.send(' ')
+
+				for plugin in pluginlist:
+					(pluginlist[plugin]).poll(conn)
+
+	def sighandler(self,arg1, arg2):
+		global stopped_by_sig
+
+		file_handle = open("/var/run/kabbit.pid", "w")
+		file_handle.write(" ")
+		file_handle.close
+
+		stopped_by_sig = 1
+
+
+	def presenceCB(self,conn,prs):
+		'''callback handler for presence actions'''
+		msg_type = prs.getType()
+
+		status=str(prs.getStatus())
+		show=str(prs.getShow())
+
+		who = prs.getFrom().getStripped()
+
+		if(strip(status)=="" or strip(status)=="Logged out"):
+			print who + " seems to be offline now"
+		else:
+			print who + " seems to be online now"
+			print status
+
+
+		allowed_jids = conf.admin_users
+
+		if msg_type == 'subscribe' :
+			if conf.visibiliy == "public" or ((str(user)).split("/"))[0] in allowed_jids:
+				roster = conn.getRoster()
+				# for security reasons there's a maximal roster length
+				if len(roster) < MAX_ROSTER_LENGTH:
+					conn.send(xmpp.Presence(to=who, typ = 'subscribed'))
+					conn.send(xmpp.Presence(to=who, typ = 'subscribe'))
+				else:
+					logger.error("Maximum roster length reached,dropped subscribtion from " + str(user))
+
+
+
+	def messageCB(self,conn,mess):
+
+		global pluginlist
+		global command_list
+		text = mess.getBody()
+		user = mess.getFrom()
+
+
+		allowed_jids = conf.admin_users
+
+		auth=0
+
+		if ((str(user)).split("/"))[0] not in allowed_jids:
+			#exit if user is not allowed to use our bot
+			#logger.warning("Failed login from " + ((str(user)).split("/"))[0])
+			#return
+			pass
+		else:
+			auth=1
+
+
+
+		if text.find(' ')+1:
+			command,args = text.split(' ', 1)
+		else:
+			command,args = text, ''
+
+		#convert incoming commands to lowercase letters
+		cmd = command.lower()
+
+		#log the command
+		access_logger.access_log("in",str(user),str(command))
+
+		if not cmd in command_list:
+			access_logger.access_log("out",str(user),str("unknown command:" + cmd))
+			return
+
+		if auth == 1:
+
+
+			if cmd == "load":
+				loadPlugin(args)
+
+			if cmd == "unload":
+				unloadPlugin(args)
+
+			if cmd == "help" and len(args)==0:
+				#conn.send(xmpp.protocol.Message(user, help()))
+				send_msg(conn,user,help())
+
+
+			if cmd == "help" and len(args)>0:
+				'''print help on plugin or command '''
+				if isPluginLoaded(str(args)):
+					help_string=pluginlist[args].help
+					help_string+="\n\nThe " + args + " plugins provides the following commands: \n"
+					for command in pluginlist[args].commands:
+						help_string+= command + "\t\t" + pluginlist[args].commands[command] + "\n"
+					send_msg(conn,user,help_string)
+				elif command_list.has_key(str(args)):
+					help_string= command + "\t\t" + pluginlist[command_list[str(args)]].commands[str(args)] + "\n"
+					send_msg(conn,user,help_string)
+
+			if cmd == "plugins":
+				send_msg(conn,user,getPluginList())
+
+
+
+		for plugin in pluginlist:
+			if pluginlist[plugin].auth == "public":
+				send_msg(conn,user,pluginlist[plugin].process_message(cmd,args))
+
+			if pluginlist[plugin].auth == "self":
+				if pluginlist[plugin].authenticate(user):
+					send_msg(user, pluginlist[plugin].process_message(cmd,args))
+
+			if pluginlist[plugin].auth == "private" and auth == 1:
+				send_msg(conn,user, pluginlist[plugin].process_message(cmd,args))
+
+
+	def run(self):
+		jid=xmpp.JID(conf.jid)
+
+		user, server, password = jid.getNode(), jid.getDomain(), conf.pwd
+
+		signal.signal(signal.SIGTERM, self.sighandler)
+		global stopped_by_sig
+
+		while stopped_by_sig == 0:
+
+			try:
+				#authres=1
+				conn = xmpp.Client(server,debug=[""])
+				conres = conn.connect()
+				if DEBUG: print "Conres:",conres
+
+
+				if not conres:
+					if DEBUG: print "Unable to connect to server %s!"%server
+					logger.error("Unable to connect to server %s!"%server)
+					sys.exit(1)
+
+				if conres <> 'tls':
+					if DEBUG: print 'Warning: unable to estabilish secure connection - TLS failed!'
+					logger.warning('Warning: unable to estabilish secure connection - TLS failed!')
+				authres = conn.auth(user,password)
+
+
+				if not authres:
+					if DEBUG: print "Unable to authorize on %s - check login/password."%server
+					logger.error("Unable to authorize on %s - check login/password."%server)
+					sys.exit(1)
+
+
+
+				if authres <> 'sasl':
+					if DEBUG: print "Warning: unable to perform SASL auth os " + server + ". Old authentication method used!"
+					logger.warning("Warning: unable to perform SASL auth os " + server + ". Old authentication method used!")
+
+				#register our handlers
+				conn.RegisterHandler('message', self.messageCB)
+				conn.RegisterHandler('presence', self.presenceCB)
+
+
+				conn.sendInitPresence()
+
+
+				self.q.setCon(conn)
+				self.rw.setCon(conn)
+				#rw.run()
+				self.GoOn(conn)
+
+
+			except Exception,e:
+				if DEBUG:	print "Exception:" + str(e)
+				self.q.setCon("")
+				time.sleep(8)
+
 
 
 
 
 def main():
-	print "k"
 	pid = os.fork()
 	if pid == 0:
 
@@ -407,62 +458,8 @@ def main():
 	sys.path.append(os.path.abspath('/usr/lib/kabbit/plugins/'))
 	os.path.walk('/usr/lib/kabbit/plugins/',get_plugins,None)
 
+	kabbit = kabbit_bot(q,rw)
+	kabbit.run()
 
-	jid=xmpp.JID(conf.jid)
-
-	user, server, password = jid.getNode(), jid.getDomain(), conf.pwd
-
-	signal.signal(signal.SIGTERM, sighandler)
-	global stopped_by_sig
-
-	while stopped_by_sig == 0:
-
-		try:
-			#authres=1
-			conn = xmpp.Client(server,debug=[""])
-			conres = conn.connect()
-			if DEBUG: print "Conres:",conres
-
-
-			if not conres:
-				if DEBUG: print "Unable to connect to server %s!"%server
-				logger.error("Unable to connect to server %s!"%server)
-				sys.exit(1)
-
-			if conres <> 'tls':
-				if DEBUG: print 'Warning: unable to estabilish secure connection - TLS failed!'
-				logger.warning('Warning: unable to estabilish secure connection - TLS failed!')
-			authres = conn.auth(user,password)
-
-
-			if not authres:
-				if DEBUG: print "Unable to authorize on %s - check login/password."%server
-				logger.error("Unable to authorize on %s - check login/password."%server)
-				sys.exit(1)
-
-
-
-			if authres <> 'sasl':
-				if DEBUG: print "Warning: unable to perform SASL auth os " + server + ". Old authentication method used!"
-				logger.warning("Warning: unable to perform SASL auth os " + server + ". Old authentication method used!")
-
-			#register our handlers
-			conn.RegisterHandler('message', messageCB)
-			conn.RegisterHandler('presence', presenceCB)
-
-
-			conn.sendInitPresence()
-
-
-			q.setCon(conn)
-			rw.setCon(conn)
-			#rw.run()
-			GoOn(conn)
-
-
-		except Exception,e:
-			if DEBUG:	print "Exception:" + str(e)
-			q.setCon("")
-			time.sleep(8)
 
 main()
