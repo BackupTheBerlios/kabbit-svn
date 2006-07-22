@@ -19,7 +19,7 @@ class kabbit_plugin(plugin):
 	def __init__(self,config):
 		self.descr="Lyrics Plugin"
 		self.author="Sebastian Moors"
-		self.version="0.1"
+		self.version="0.2"
 		self.commands={}
 		self.commands["lyr"]="Usage: lyr artist - song"
 		self.auth="public"
@@ -29,6 +29,8 @@ class kabbit_plugin(plugin):
 		   to use the service
 		'''
 		self.auth="public"
+
+
 
 	def poll(self,connection):
 		pass
@@ -125,8 +127,12 @@ class kabbit_plugin(plugin):
 			r=re.compile("</font>")
 			my_buffer=r.sub("\n",my_buffer)
 
+
+
 			delete_tags=re.compile("<.*?>")
 			my_buffer=delete_tags.sub("",my_buffer)
+
+
 
 
 			return my_buffer.decode("iso-8859-1")
@@ -175,9 +181,19 @@ class kabbit_plugin(plugin):
 			delete_tags=re.compile("<.*?>")
 			my_buffer=delete_tags.sub("",my_buffer)
 
+			r=re.compile("<!--.*-->",re.DOTALL)
+			my_buffer=r.sub("",my_buffer)
+
+
+			r=re.compile("<script .*>",re.DOTALL)
+			my_buffer=r.sub("",my_buffer)
+
+
 			if my_buffer.strip()=="":
 				return "No song found."
 			return "\n" + my_buffer.decode("iso-8859-1")
 
-
+#if __name__ == "__main__":
+#	k=kabbit_plugin()
+#	print k.process_message("lyr","Kiss - Love Gun")
 

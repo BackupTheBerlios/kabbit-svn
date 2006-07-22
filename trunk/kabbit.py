@@ -13,6 +13,8 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 ####################################################################
+
+
 import re
 import sys
 import xmpp
@@ -42,22 +44,14 @@ DEBUG = conf.debug
 
 stopped_by_sig=0
 
-pluginlist = {}
-
-send_queue = Queue()
 
 
-# command_list['status'] = "core"
-# command_list['cmd'] = "pluginname"
-command_list={}
 
-#register builtin commands
-command_list['plugins'] = "builtin"
-command_list['help'] = "builtin"
-command_list['load'] = "builtin"
-command_list['unload'] = "builtin"
 
-r=re.compile(".*\.py$")
+
+
+
+
 
 #maximal accounts in our roster
 MAX_ROSTER_LENGTH=100
@@ -84,11 +78,43 @@ else:
 
 
 
-#data structure used in message queing
+
+
+##############################################
+#data structure used in message queing       #
+##############################################
 class kabbit_message:
 	def __init__(self,user,msg):
 		self.user=user
 		self.msg=msg
+
+
+
+
+
+##############################################
+#data structure used for roster managment    #
+##############################################
+class roster_element:
+	def __init__(self,jid,status,show):
+		self._jid=jid
+		self._status=status
+		self._show=show
+
+	def setStatus(self,status):
+		self.status=status
+
+	def setShow(self,show):
+		self.show=show
+
+	def getStatus(self):
+		return self.status
+
+
+	def getShow(self):
+		return self.show
+
+
 
 ##########################################################
 # 			Plugin manager			 #
@@ -107,65 +133,90 @@ class kabbit_message:
 
 
 #load available plugins
-def get_plugins(nothing,path,files):
-	global pluginlist
-	for f in files:
-		if r.match(f):
-			fname = f.split('.')[0]
-			loadPlugin(fname)
 
 
-def loadPlugin(name):
-	'''load plugin'''
+class plugin_manager:
 
-	if isPluginLoaded(name):
-		#reload it
-		unloadPlugin(name)
-
-	try:
-		tmp=(__import__(name,globals(),locals(),[]))
-		tmp_object=tmp.kabbit_plugin(conf)
-		if isinstance(tmp_object,plugin):
-			if DEBUG:	print name + " is a valid plugin"
-			#be sure that no command is already in the commandlist
-			for command in tmp_object.commands:
-				if command in command_list:
-					raise Exception
-				else:
-					command_list[command] = name
-			# construct an instance
-
-			pluginlist[name] = tmp_object
-	except Exception,e:
-		if DEBUG:	print e
+	pluginlist = {}
 
 
-def unloadPlugin(name):
-	''' remove plugin'''
-	if name in pluginlist:
-		#delete all commands from pluginlist
-		for command in pluginlist[name].commands:
-			del(command_list[command])
-		del(pluginlist[name])
-		return 1
-	else:
-		return 0
 
 
-def getPluginList():
-	''' return the loaded plugins '''
-	global pluginlist
-	ret_string = "\n Loaded Plugins: \n"
-	for plugin in pluginlist:
-		ret_string += plugin.strip() + "\t\t" + pluginlist[plugin].descr + "\n"
-	return ret_string
+	# command_list['status'] = "core"
+	# command_list['cmd'] = "pluginname"
+	command_list={}
 
-def isPluginLoaded(name):
-	''' check if a plugin is loaded '''
-	if name in pluginlist:
-		return 1
-	else:
-		return 0
+	#register builtin commands
+	command_list['plugins'] = "builtin"
+	command_list['help'] = "builtin"
+	command_list['load'] = "builtin"
+	command_list['unload'] = "builtin"
+
+	def __init__(self):
+		self.r=re.compile(".*\.py$")
+
+
+	def get_plugins(self,nothing,path,files):
+
+		for f in files:
+			if self.r.match(f):
+				fname = f.split('.')[0]
+				self.loadPlugin(fname)
+
+
+	def loadPlugin(self,name):
+		'''load plugin'''
+
+		if self.isPluginLoaded(name):
+			#reload it
+			self.unloadPlugin(name)
+
+		try:
+			tmp=(__import__(name,globals(),locals(),[]))
+			tmp_object=tmp.kabbit_plugin(conf)
+			if isinstance(tmp_object,plugin):
+				if DEBUG:	print name + " is a valid plugin"
+				#be sure that no command is already in the commandlist
+				for command in tmp_object.commands:
+					if command in self.command_list:
+						raise Exception
+					else:
+						self.command_list[command] = name
+
+				# construct an instance
+				self.pluginlist[name] = tmp_object
+
+		except Exception,e:
+			if DEBUG:	print e
+
+
+	def unloadPlugin(self,name):
+		''' remove plugin'''
+		if name in self.pluginlist:
+			#delete all commands from pluginlist
+			for command in self.pluginlist[name].commands:
+				del(self.command_list[command])
+			del(self.pluginlist[name])
+			return 1
+		else:
+			return 0
+
+
+	def getPluginList(self):
+		''' return the loaded plugins '''
+
+		ret_string = "\n Loaded Plugins: \n"
+		for plugin in self.pluginlist:
+			ret_string += plugin.strip() + "\t\t" + self.pluginlist[plugin].descr + "\n"
+		return ret_string
+
+
+	def isPluginLoaded(self,name):
+		''' check if a plugin is loaded '''
+		if name in self.pluginlist:
+			return 1
+		else:
+			return 0
 
 def help():
 	#print help
@@ -184,20 +235,18 @@ def help():
 
 
 
-def send_msg(conn,user,msg):
-	#conn.send(xmpp.protocol.Message(user,msg,"chat"))
-	msg=str(msg).strip()
-	if msg.strip() != "None" and len(msg) > 0:
-		send_queue.put(kabbit_message(user,msg))
+
 
 
 
 
 
 class queue_daemon(threading.Thread):
-	def __init__(self):
+	def __init__(self,queue):
 		threading.Thread.__init__(self)
 		self.con=""
+		self.send_queue=queue
+
 	def setCon(self,con):
 		# set actual connection
 		self.con = con
@@ -206,17 +255,21 @@ class queue_daemon(threading.Thread):
 		global stopped_by_sig
 		while(stopped_by_sig==0):
 			time.sleep(1)
-		        if send_queue.qsize() > 0 and self.con != "":
-				k_msg=send_queue.get()
+		        if self.send_queue.qsize() > 0 and self.con != "":
+				k_msg=self.send_queue.get()
 				self.con.send(xmpp.protocol.Message(k_msg.user,k_msg.msg,"chat"))
 				access_logger.access_log("out",str(k_msg.user),"*")
 
 
 
 class roster_watcher(threading.Thread):
+
+	valid_states=["online,offline,away"]
+
 	def __init__(self):
 		threading.Thread.__init__(self)
 		self.con=""
+		self.roster={}
 
 
 	def setCon(self,con):
@@ -224,20 +277,37 @@ class roster_watcher(threading.Thread):
 
 	def run(self):
 		roster = self.con.getRoster()
+		for item in roster.getItems():
+			self.roster[item]=roster_element(item,"offline","")
+			self.setStatus(item,"offline")
 
+	def setStatus(self,jid,status):
+		#if not self.roster
 
-	def setStatus(jid,status):
-		pass
-		#set the current status for contact jid
+		if status in self.valid_states:
+			self.roster[jid].setStatus(status)
 
+	def getStatus(self,jid):
+		return self.roster[jid].getStatus()
+
+	def setShow(self,jid,show):
+		if self.roster.has_key(jid):
+			self.roster[jid].setShow(show)
 
 
 
 class kabbit_bot:
 
-	def __init__(self,queue_daemon,roster_watcher):
+
+
+
+	def __init__(self,queue_daemon,roster_watcher,plugin_manager):
+
 		self.q=queue_daemon
 		self.rw=roster_watcher
+		self.p=plugin_manager
+
+
 
 	def StepOn(self,conn):
 		try:
@@ -246,13 +316,26 @@ class kabbit_bot:
 			return 0
 		return 1
 
+
+
 	def GoOn(self,conn):
 		while self.StepOn(conn):
 			if int(time.time())%60 == 0:
 				conn.send(' ')
 
-				for plugin in pluginlist:
-					(pluginlist[plugin]).poll(conn)
+				for plugin in self.p.pluginlist:
+					(self.p.pluginlist[plugin]).poll(conn)
+
+
+
+	def send_msg(self,conn,user,msg):
+		#conn.send(xmpp.protocol.Message(user,msg,"chat"))
+		msg=str(msg).strip()
+		if msg.strip() != "None" and len(msg) > 0:
+			self.q.send_queue.put(kabbit_message(user,msg))
+
+
+
 
 	def sighandler(self,arg1, arg2):
 		global stopped_by_sig
@@ -264,20 +347,26 @@ class kabbit_bot:
 		stopped_by_sig = 1
 
 
+
 	def presenceCB(self,conn,prs):
 		'''callback handler for presence actions'''
 		msg_type = prs.getType()
-
 		status=str(prs.getStatus())
 		show=str(prs.getShow())
-
 		who = prs.getFrom().getStripped()
 
-		if(strip(status)=="" or strip(status)=="Logged out"):
-			print who + " seems to be offline now"
+
+
+		if(strip(status)=="Logged out"):
+			if DEBUG: print who + " seems to be offline now"
+			self.rw.setStatus(who,"offline")
 		else:
-			print who + " seems to be online now"
-			print status
+			if DEBUG: print who + " seems to be online now"
+			self.rw.setStatus(who,"online")
+
+
+		self.rw.setShow(who,str(show))
+
 
 
 		allowed_jids = conf.admin_users
@@ -296,8 +385,7 @@ class kabbit_bot:
 
 	def messageCB(self,conn,mess):
 
-		global pluginlist
-		global command_list
+
 		text = mess.getBody()
 		user = mess.getFrom()
 
@@ -327,51 +415,51 @@ class kabbit_bot:
 		#log the command
 		access_logger.access_log("in",str(user),str(command))
 
-		if not cmd in command_list:
+		if not cmd in self.p.command_list:
 			access_logger.access_log("out",str(user),str("unknown command:" + cmd))
 			return
+
 
 		if auth == 1:
 
 
 			if cmd == "load":
-				loadPlugin(args)
+				self.p.loadPlugin(args)
 
 			if cmd == "unload":
-				unloadPlugin(args)
+				self.p.unloadPlugin(args)
 
 			if cmd == "help" and len(args)==0:
-				#conn.send(xmpp.protocol.Message(user, help()))
-				send_msg(conn,user,help())
+				self.send_msg(conn,user,help())
 
 
 			if cmd == "help" and len(args)>0:
 				'''print help on plugin or command '''
-				if isPluginLoaded(str(args)):
-					help_string=pluginlist[args].help
+				if self.p.isPluginLoaded(str(args)):
+					help_string=self.p.pluginlist[args].help
 					help_string+="\n\nThe " + args + " plugins provides the following commands: \n"
-					for command in pluginlist[args].commands:
-						help_string+= command + "\t\t" + pluginlist[args].commands[command] + "\n"
-					send_msg(conn,user,help_string)
-				elif command_list.has_key(str(args)):
-					help_string= command + "\t\t" + pluginlist[command_list[str(args)]].commands[str(args)] + "\n"
-					send_msg(conn,user,help_string)
+					for command in self.p.pluginlist[args].commands:
+						help_string+= command + "\t\t" + self.p.pluginlist[args].commands[command] + "\n"
+					self.send_msg(conn,user,help_string)
+				elif self.p.command_list.has_key(str(args)):
+					help_string= command + "\t\t" + self.p.pluginlist[self.p.command_list[str(args)]].commands[str(args)] + "\n"
+					self.send_msg(conn,user,help_string)
 
 			if cmd == "plugins":
-				send_msg(conn,user,getPluginList())
+				self.send_msg(conn,user,self.p.getPluginList())
 
 
 
-		for plugin in pluginlist:
-			if pluginlist[plugin].auth == "public":
-				send_msg(conn,user,pluginlist[plugin].process_message(cmd,args))
+		for plugin in self.p.pluginlist:
+			if self.p.pluginlist[plugin].auth == "public":
+				self.send_msg(conn,user,self.p.pluginlist[plugin].process_message(cmd,args))
 
-			if pluginlist[plugin].auth == "self":
+			if self.p.pluginlist[plugin].auth == "self":
 				if pluginlist[plugin].authenticate(user):
-					send_msg(user, pluginlist[plugin].process_message(cmd,args))
+					self.send_msg(user, self.p.pluginlist[plugin].process_message(cmd,args))
 
-			if pluginlist[plugin].auth == "private" and auth == 1:
-				send_msg(conn,user, pluginlist[plugin].process_message(cmd,args))
+			if self.p.pluginlist[plugin].auth == "private" and auth == 1:
+				self.send_msg(conn,user, self.p.pluginlist[plugin].process_message(cmd,args))
 
 
 	def run(self):
@@ -421,9 +509,13 @@ class kabbit_bot:
 				conn.sendInitPresence()
 
 
+				#setting up queue_daemon
 				self.q.setCon(conn)
+
+				#setting up roster manager
 				self.rw.setCon(conn)
-				#rw.run()
+				self.rw.run()
+
 				self.GoOn(conn)
 
 
@@ -448,17 +540,21 @@ def main():
 	else:
 		sys.exit(0)
 
+
+
+
 	rw=roster_watcher()
 
-	q=queue_daemon()
+	q=queue_daemon(Queue())
 	q.start()
 
+	p=plugin_manager()
 
 	#initalize our plugins
 	sys.path.append(os.path.abspath('/usr/lib/kabbit/plugins/'))
-	os.path.walk('/usr/lib/kabbit/plugins/',get_plugins,None)
+	os.path.walk('/usr/lib/kabbit/plugins/',p.get_plugins,None)
 
-	kabbit = kabbit_bot(q,rw)
+	kabbit = kabbit_bot(q,rw,p)
 	kabbit.run()
 
 
