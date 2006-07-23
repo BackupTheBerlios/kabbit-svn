@@ -35,46 +35,20 @@ from plugin import plugin
 from config import config
 from kabbit_log import kabbit_logger
 
-conf=config()
-
-access_logger = kabbit_logger("/var/log/kabbit/access.log")
 
 
-DEBUG = conf.debug
+
+
+
+
 
 stopped_by_sig=0
-
-
-
-
-
-
-
-
 
 
 #maximal accounts in our roster
 MAX_ROSTER_LENGTH=100
 
-##########################################################
-#  setup the logger.					 #
-#     - set path (from config)				 #
-#     - set level (from config)				 #
-#  level could  be "error" or "warning"			 #
-#  if error is chosen, only errors will be logged..	 #
-##########################################################
 
-
-logger = logging.getLogger('kabbit')
-hdlr = logging.FileHandler(conf.log_file)
-formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-hdlr.setFormatter(formatter)
-logger.addHandler(hdlr)
-
-if conf.log_level == "warning":
-	logger.setLevel(logging.WARNING)
-else:
-	logger.setLevel(logging.ERROR)
 
 
 
@@ -96,6 +70,7 @@ class kabbit_message:
 #data structure used for roster managment    #
 ##############################################
 class roster_element:
+
 	def __init__(self,jid,status,show):
 		self._jid=jid
 		self._status=status
@@ -116,30 +91,24 @@ class roster_element:
 
 
 
-##########################################################
-# 			Plugin manager			 #
-# A plugin has to be a class named plugin implementing   #
-#the process_message(mess,args) method and the following #
-# properties:						 #
-#							 #
-# -descr	A short plugin description               #
-# -author	The Authors Name and / or email adress   #
-# -version	Version of the plugin                    #
-# -commands     commands which are implemented by plugin #
-# -auth		authentication method                    #
-# -help		help on commands and plugin              #
-##########################################################
-
-
-
-#load available plugins
-
 
 class plugin_manager:
 
+	##########################################################
+	# 			Plugin manager			 #
+	# A plugin has to be a class named plugin implementing   #
+	#the process_message(mess,args) method and the following #
+	# properties:						 #
+	#							 #
+	# -descr	A short plugin description               #
+	# -author	The Authors Name and / or email adress   #
+	# -version	Version of the plugin                    #
+	# -commands     commands which are implemented by plugin #
+	# -auth		authentication method                    #
+	# -help		help on commands and plugin              #
+	##########################################################
+
 	pluginlist = {}
-
-
 
 
 	# command_list['status'] = "core"
@@ -152,8 +121,17 @@ class plugin_manager:
 	command_list['load'] = "builtin"
 	command_list['unload'] = "builtin"
 
-	def __init__(self):
+	def __init__(self,config):
 		self.r=re.compile(".*\.py$")
+
+		self.config=config
+		self.DEBUG=self.config.getDebug()
+
+		#initalize our plugins
+
+		sys.path.append(os.path.abspath(self.config.getPluginDir()))
+		os.path.walk(self.config.getPluginDir(),self.get_plugins,None)
+
 
 
 	def get_plugins(self,nothing,path,files):
@@ -173,9 +151,9 @@ class plugin_manager:
 
 		try:
 			tmp=(__import__(name,globals(),locals(),[]))
-			tmp_object=tmp.kabbit_plugin(conf)
+			tmp_object=tmp.kabbit_plugin(self.config)
 			if isinstance(tmp_object,plugin):
-				if DEBUG:	print name + " is a valid plugin"
+				if self.DEBUG:	print name + " is a valid plugin"
 				#be sure that no command is already in the commandlist
 				for command in tmp_object.commands:
 					if command in self.command_list:
@@ -187,7 +165,7 @@ class plugin_manager:
 				self.pluginlist[name] = tmp_object
 
 		except Exception,e:
-			if DEBUG:	print e
+			if self.DEBUG:	print e
 
 
 	def unloadPlugin(self,name):
@@ -235,17 +213,12 @@ def help():
 
 
 
-
-
-
-
-
-
 class queue_daemon(threading.Thread):
-	def __init__(self,queue):
+	def __init__(self,queue,access_logger):
 		threading.Thread.__init__(self)
 		self.con=""
 		self.send_queue=queue
+		self.access_logger=access_logger
 
 	def setCon(self,con):
 		# set actual connection
@@ -258,7 +231,7 @@ class queue_daemon(threading.Thread):
 		        if self.send_queue.qsize() > 0 and self.con != "":
 				k_msg=self.send_queue.get()
 				self.con.send(xmpp.protocol.Message(k_msg.user,k_msg.msg,"chat"))
-				access_logger.access_log("out",str(k_msg.user),"*")
+				self.access_logger.access_log("out",str(k_msg.user),"*")
 
 
 
@@ -298,14 +271,37 @@ class roster_watcher(threading.Thread):
 
 class kabbit_bot:
 
-
-
-
-	def __init__(self,queue_daemon,roster_watcher,plugin_manager):
+	def __init__(self,queue_daemon,roster_watcher,plugin_manager,config,access_logger):
 
 		self.q=queue_daemon
 		self.rw=roster_watcher
 		self.p=plugin_manager
+		self.conf=config
+
+		self.DEBUG = self.conf.getDebug()
+		self.access_logger=access_logger
+
+
+
+		##########################################################
+		#  setup the logger.					 #
+		#     - set path (from config)				 #
+		#     - set level (from config)				 #
+		#  level could  be "error" or "warning"			 #
+		#  if error is chosen, only errors will be logged..	 #
+		##########################################################
+
+
+		self.logger = logging.getLogger('kabbit')
+		hdlr = logging.FileHandler(self.conf.getLogfile())
+		formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+		hdlr.setFormatter(formatter)
+		self.logger.addHandler(hdlr)
+
+		if self.conf.getLoglevel() == "warning":
+			self.logger.setLevel(logging.WARNING)
+		else:
+			self.logger.setLevel(logging.ERROR)
 
 
 
@@ -358,10 +354,10 @@ class kabbit_bot:
 
 
 		if(strip(status)=="Logged out"):
-			if DEBUG: print who + " seems to be offline now"
+			if self.DEBUG: print who + " seems to be offline now"
 			self.rw.setStatus(who,"offline")
 		else:
-			if DEBUG: print who + " seems to be online now"
+			if self.DEBUG: print who + " seems to be online now"
 			self.rw.setStatus(who,"online")
 
 
@@ -369,7 +365,7 @@ class kabbit_bot:
 
 
 
-		allowed_jids = conf.admin_users
+		allowed_jids = self.conf.getAdminusers()
 
 		if msg_type == 'subscribe' :
 			if conf.visibiliy == "public" or ((str(user)).split("/"))[0] in allowed_jids:
@@ -379,7 +375,7 @@ class kabbit_bot:
 					conn.send(xmpp.Presence(to=who, typ = 'subscribed'))
 					conn.send(xmpp.Presence(to=who, typ = 'subscribe'))
 				else:
-					logger.error("Maximum roster length reached,dropped subscribtion from " + str(user))
+					self.logger.error("Maximum roster length reached,dropped subscribtion from " + str(user))
 
 
 
@@ -390,7 +386,7 @@ class kabbit_bot:
 		user = mess.getFrom()
 
 
-		allowed_jids = conf.admin_users
+		allowed_jids = self.conf.getAdminusers()
 
 		auth=0
 
@@ -413,10 +409,10 @@ class kabbit_bot:
 		cmd = command.lower()
 
 		#log the command
-		access_logger.access_log("in",str(user),str(command))
+		self.access_logger.access_log("in",str(user),str(command))
 
 		if not cmd in self.p.command_list:
-			access_logger.access_log("out",str(user),str("unknown command:" + cmd))
+			self.access_logger.access_log("out",str(user),str("unknown command:" + cmd))
 			return
 
 
@@ -463,9 +459,9 @@ class kabbit_bot:
 
 
 	def run(self):
-		jid=xmpp.JID(conf.jid)
+		jid=xmpp.JID(self.conf.getJid())
 
-		user, server, password = jid.getNode(), jid.getDomain(), conf.pwd
+		user, server, password = jid.getNode(), jid.getDomain(), self.conf.getPwd()
 
 		signal.signal(signal.SIGTERM, self.sighandler)
 		global stopped_by_sig
@@ -476,30 +472,30 @@ class kabbit_bot:
 				#authres=1
 				conn = xmpp.Client(server,debug=[""])
 				conres = conn.connect()
-				if DEBUG: print "Conres:",conres
+				if self.DEBUG: print "Conres:",conres
 
 
 				if not conres:
-					if DEBUG: print "Unable to connect to server %s!"%server
-					logger.error("Unable to connect to server %s!"%server)
+					if self.DEBUG: print "Unable to connect to server %s!"%server
+					self.logger.error("Unable to connect to server %s!"%server)
 					sys.exit(1)
 
 				if conres <> 'tls':
-					if DEBUG: print 'Warning: unable to estabilish secure connection - TLS failed!'
-					logger.warning('Warning: unable to estabilish secure connection - TLS failed!')
+					if self.DEBUG: print 'Warning: unable to estabilish secure connection - TLS failed!'
+					self.logger.warning('Warning: unable to estabilish secure connection - TLS failed!')
 				authres = conn.auth(user,password)
 
 
 				if not authres:
-					if DEBUG: print "Unable to authorize on %s - check login/password."%server
-					logger.error("Unable to authorize on %s - check login/password."%server)
+					if self.DEBUG: print "Unable to authorize on %s - check login/password."%server
+					self.logger.error("Unable to authorize on %s - check login/password."%server)
 					sys.exit(1)
 
 
 
 				if authres <> 'sasl':
-					if DEBUG: print "Warning: unable to perform SASL auth os " + server + ". Old authentication method used!"
-					logger.warning("Warning: unable to perform SASL auth os " + server + ". Old authentication method used!")
+					if self.DEBUG: print "Warning: unable to perform SASL auth os " + server + ". Old authentication method used!"
+					self.logger.warning("Warning: unable to perform SASL auth os " + server + ". Old authentication method used!")
 
 				#register our handlers
 				conn.RegisterHandler('message', self.messageCB)
@@ -520,7 +516,7 @@ class kabbit_bot:
 
 
 			except Exception,e:
-				if DEBUG:	print "Exception:" + str(e)
+				if self.DEBUG:	print "Exception:" + str(e)
 				self.q.setCon("")
 				time.sleep(8)
 
@@ -541,21 +537,22 @@ def main():
 		sys.exit(0)
 
 
+	conf=config()
+	accounts=conf.getConfig()
+
+	for kabbit_conf in accounts:
+		rw=roster_watcher()
 
 
-	rw=roster_watcher()
+		p=plugin_manager(accounts[kabbit_conf])
 
-	q=queue_daemon(Queue())
-	q.start()
+		access_logger = kabbit_logger("/var/log/kabbit/access_" + kabbit_conf + ".log")
 
-	p=plugin_manager()
+		q=queue_daemon(Queue(),access_logger)
+		q.start()
 
-	#initalize our plugins
-	sys.path.append(os.path.abspath('/usr/lib/kabbit/plugins/'))
-	os.path.walk('/usr/lib/kabbit/plugins/',p.get_plugins,None)
 
-	kabbit = kabbit_bot(q,rw,p)
-	kabbit.run()
-
+		kabbit = kabbit_bot(q,rw,p,accounts[kabbit_conf],access_logger)
+		kabbit.run()
 
 main()

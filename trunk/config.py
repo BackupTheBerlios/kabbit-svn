@@ -4,37 +4,128 @@ import getopt
 import os
 import sys
 
+class kabbit_config:
+	def __init__(self):
+		self.__jid=""
+		self.__pwd=""
+		self.__visibility=""
+		self.__log_file=""
+		self.__log_level=""
+		self.__debug=0
+		self.__admin_users=[]
+		self.__accountName=""
+		self.__PluginDir=""
+
+
+	def setPluginDir(self,pl_dir):
+		self.__PluginDir=pl_dir
+
+	def getPluginDir(self):
+		return self.__PluginDir
+
+	def setAccountName(self,name):
+		self.__accountName=name
+
+
+	def getAccountName(self):
+		return self.__accountName
+
+	def setJid(self,jid):
+		self.__jid=jid
+
+	def setPwd(self,pwd):
+		self.__pwd=pwd
+
+	def setVisibility(self,visibility):
+		self.__visibility=visibility
+
+	def setLogfile(self,file):
+		self.__log_file=file
+
+	def setLoglevel(self,level):
+		self.__Loglevel=level
+
+	def setDebug(self,debug):
+		self.__debug=debug
+
+
+	def setAdminusers(self,user):
+		self.__admin_users=user
+
+
+	def getJid(self):
+		return self.__jid
+
+	def getPwd(self):
+		return self.__pwd
+
+	def getVisibility(self):
+		return self.__visibility
+
+	def getLogfile(self):
+		return self.__log_file
+
+	def getLoglevel(self):
+		return self.__log_level
+
+	def getDebug(self):
+		return self.__debug
+
+	def getAdminusers(self):
+		return self.__admin_users
+
+
+
 class config:
+
+	__configHash={}
 
 	def __init__(self):
 		"""Class for Configuration Managment"""
 		config = ConfigParser.ConfigParser()
-		self.admin_users=[]
+
 		config.readfp(open('/etc/kabbit.conf'))
 
-		self.jid=config.get("jabber","bot_jid")
-		self.pwd=config.get("jabber","bot_password")
+		accounts = config.sections()
 
-		self.visibility=config.get("jabber","visibility")
+		self.configHash={}
 
-		self.log_file=config.get("main","log_file")
-		self.log_level=config.get("main","log_level")
+		for account in accounts:
+			admin_users=[]
+			c=kabbit_config()
+			c.setJid(config.get(account,"bot_jid"))
+			c.setPwd(config.get(account,"bot_password"))
+			c.setVisibility(config.get(account,"bot_password"))
+			c.setLogfile(config.get(account,"log_file"))
+			c.setLoglevel(config.get(account,"log_level"))
+			c.setPluginDir(config.get(account,"plugin_dir"))
 
-		self.debug = 0
 
-		if config.get("jabber","admin_users").find(",") >= 0:
-			self.admin_users=config.get("jabber","admin_users").split(",")
-		else:
-			self.admin_users.append(config.get("jabber","admin_users"))
+			if config.get(account,"admin_users").find(",") >= 0:
+				admin_users=config.get(account,"admin_users").split(",")
+			else:
+				admin_users.append(config.get(account,"admin_users"))
+
+			c.setAdminusers(admin_users)
+
+			try:
+				long_opts=["debug"]
+				opts, args = getopt.getopt(sys.argv[1:], "d",long_opts )
+			except getopt.GetoptError:
+				sys.exit(2)
+
+			for option, argument in opts:
+				if option in ("-d", "--debug"):
+					c.setDebug(1)
+
+			self.configHash[account]=c;
+
+	def getConfig(self):
+		return self.configHash
 
 
-		try:
-			long_opts=["debug"]
-			opts, args = getopt.getopt(sys.argv[1:], "d",long_opts )
-		except getopt.GetoptError:
-			sys.exit(2)
 
-		for option, argument in opts:
-			if option in ("-d", "--debug"):
-				self.debug=1
+if __name__ == "__main__":
+		p = config()
+		print p.getConfig()
 
