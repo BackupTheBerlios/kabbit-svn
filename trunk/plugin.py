@@ -1,7 +1,7 @@
 class plugin:
-	def __init__(self,config):
-		this.conf = config
-
+	def __init__(self,config,roster):
+		self.conf = config
+		self.roster=roster
 
 	def poll(self,connection):
 		pass

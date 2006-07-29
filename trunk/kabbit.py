@@ -35,22 +35,12 @@ from plugin import plugin
 from config import config
 from kabbit_log import kabbit_logger
 
-
-
-
-
-
-
-
+#turn 1 on SIGTERM
 stopped_by_sig=0
 
 
 #maximal accounts in our roster
 MAX_ROSTER_LENGTH=100
-
-
-
-
 
 
 
@@ -72,22 +62,25 @@ class kabbit_message:
 class roster_element:
 
 	def __init__(self,jid,status,show):
-		self._jid=jid
-		self._status=status
-		self._show=show
+		self.__jid=jid
+		self.__status=status
+		self.__show=show
+
 
 	def setStatus(self,status):
-		self.status=status
+		self.__status=status
 
 	def setShow(self,show):
-		self.show=show
+		self.__show=show
 
 	def getStatus(self):
-		return self.status
+		return self.__status
 
+	def getJid(self):
+		return self.__jid
 
 	def getShow(self):
-		return self.show
+		return self.__show
 
 
 
@@ -121,12 +114,12 @@ class plugin_manager:
 	command_list['load'] = "builtin"
 	command_list['unload'] = "builtin"
 
-	def __init__(self,config):
+	def __init__(self,config,roster_watcher):
 		self.r=re.compile(".*\.py$")
 
 		self.config=config
 		self.DEBUG=self.config.getDebug()
-
+		self.roster=roster_watcher
 		#initalize our plugins
 
 		sys.path.append(os.path.abspath(self.config.getPluginDir()))
@@ -151,7 +144,7 @@ class plugin_manager:
 
 		try:
 			tmp=(__import__(name,globals(),locals(),[]))
-			tmp_object=tmp.kabbit_plugin(self.config)
+			tmp_object=tmp.kabbit_plugin(self.config,self.roster)
 			if isinstance(tmp_object,plugin):
 				if self.DEBUG:	print name + " is a valid plugin"
 				#be sure that no command is already in the commandlist
@@ -196,18 +189,6 @@ class plugin_manager:
 		else:
 			return 0
 
-def help():
-	#print help
-	help_text = "\nHi, this is kabbit 0.0.7, your server-monitoring Killer Rabbit.";
-	help_text += "\nCopyright by Sebastian Moors <sebastian.moors@gmail.com> 23.02.2006";
-	help_text += "\nLicensed under GPLv2";
-	help_text += "\n\nAvailable commands: \n\nstatus\t\t\tPrint status informations"
-	help_text += "\nservices\t\t\t Show running processes"
-	help_text += "\nplugins\t\t\t Show loaded plugins"
-	help_text += "\nload pluginname\t\t Load plugin"
-	help_text += "\nunload pluginname\t\t Unload plugin"
-	help_text += "\nhelp\t\t\t\t This text"
-	return help_text
 
 
 
@@ -230,23 +211,40 @@ class queue_daemon(threading.Thread):
 			time.sleep(1)
 		        if self.send_queue.qsize() > 0 and self.con != "":
 				k_msg=self.send_queue.get()
-				self.con.send(xmpp.protocol.Message(k_msg.user,k_msg.msg,"chat"))
+				self.con.send(xmpp.protocol.Message(k_msg.user,k_msg.msg))
 				self.access_logger.access_log("out",str(k_msg.user),"*")
 
 
 
-class roster_watcher(threading.Thread):
+def sighandler(arg1, arg2):
+	global stopped_by_sig
 
-	valid_states=["online,offline,away"]
+	file_handle = open("/var/run/kabbit.pid", "w")
+	file_handle.write(" ")
+	file_handle.close
+
+	stopped_by_sig = 1
+
+
+class roster_watcher:
+
+	valid_states=["online","offline","away"]
 
 	def __init__(self):
-		threading.Thread.__init__(self)
 		self.con=""
 		self.roster={}
+
+	def getRoster(self):
+		tmp_roster={}
+		for item in self.roster:
+			tmp_roster[item]=self.roster[item].getStatus()
+		return tmp_roster
+
 
 
 	def setCon(self,con):
 		self.con = con
+
 
 	def run(self):
 		roster = self.con.getRoster()
@@ -254,11 +252,14 @@ class roster_watcher(threading.Thread):
 			self.roster[item]=roster_element(item,"offline","")
 			self.setStatus(item,"offline")
 
+
+
+
 	def setStatus(self,jid,status):
-		#if not self.roster
 
 		if status in self.valid_states:
 			self.roster[jid].setStatus(status)
+
 
 	def getStatus(self,jid):
 		return self.roster[jid].getStatus()
@@ -269,9 +270,12 @@ class roster_watcher(threading.Thread):
 
 
 
-class kabbit_bot:
+class kabbit_bot(threading.Thread):
 
 	def __init__(self,queue_daemon,roster_watcher,plugin_manager,config,access_logger):
+		threading.Thread.__init__(self)
+
+
 
 		self.q=queue_daemon
 		self.rw=roster_watcher
@@ -306,8 +310,15 @@ class kabbit_bot:
 
 
 	def StepOn(self,conn):
+		global stopped_by_sig
 		try:
-			conn.Process(1)
+
+			if stopped_by_sig==0:
+				conn.Process(1)
+			else:
+				sys.exit(0)
+
+
 		except KeyboardInterrupt:
 			return 0
 		return 1
@@ -333,14 +344,7 @@ class kabbit_bot:
 
 
 
-	def sighandler(self,arg1, arg2):
-		global stopped_by_sig
 
-		file_handle = open("/var/run/kabbit.pid", "w")
-		file_handle.write(" ")
-		file_handle.close
-
-		stopped_by_sig = 1
 
 
 
@@ -354,11 +358,15 @@ class kabbit_bot:
 
 
 		if(strip(status)=="Logged out"):
-			if self.DEBUG: print who + " seems to be offline now"
+			if self.DEBUG:
+				print who + " seems to be offline now"
 			self.rw.setStatus(who,"offline")
 		else:
-			if self.DEBUG: print who + " seems to be online now"
+			if self.DEBUG:
+				print who + " seems to be online now"
 			self.rw.setStatus(who,"online")
+
+
 
 
 		self.rw.setShow(who,str(show))
@@ -376,6 +384,21 @@ class kabbit_bot:
 					conn.send(xmpp.Presence(to=who, typ = 'subscribe'))
 				else:
 					self.logger.error("Maximum roster length reached,dropped subscribtion from " + str(user))
+
+
+	def help(self):
+		#print help
+		help_text = "\nHi, this is kabbit 0.0.8, your server-monitoring Killer Rabbit.";
+		help_text += "\nCopyright by Sebastian Moors <sebastian.moors@gmail.com> 23.02.2006";
+		help_text += "\nLicensed under GPLv2"
+		help_text += "\nThis bot is administrated by " + self.conf.getAdminEmail()
+		help_text += "\n\nAvailable commands: \n\nstatus\t\t\tPrint status informations"
+		help_text += "\nservices\t\t\t Show running processes"
+		help_text += "\nplugins\t\t\t Show loaded plugins"
+		help_text += "\nload pluginname\t\t Load plugin"
+		help_text += "\nunload pluginname\t\t Unload plugin"
+		help_text += "\nhelp\t\t\t\t This text"
+		return help_text
 
 
 
@@ -426,7 +449,7 @@ class kabbit_bot:
 				self.p.unloadPlugin(args)
 
 			if cmd == "help" and len(args)==0:
-				self.send_msg(conn,user,help())
+				self.send_msg(conn,user,self.help())
 
 
 			if cmd == "help" and len(args)>0:
@@ -463,7 +486,7 @@ class kabbit_bot:
 
 		user, server, password = jid.getNode(), jid.getDomain(), self.conf.getPwd()
 
-		signal.signal(signal.SIGTERM, self.sighandler)
+
 		global stopped_by_sig
 
 		while stopped_by_sig == 0:
@@ -516,7 +539,8 @@ class kabbit_bot:
 
 
 			except Exception,e:
-				if self.DEBUG:	print "Exception:" + str(e)
+				if self.DEBUG:
+					print "Exception:" + str(e)
 				self.q.setCon("")
 				time.sleep(8)
 
@@ -537,14 +561,17 @@ def main():
 		sys.exit(0)
 
 
+	signal.signal(signal.SIGTERM, sighandler)
+
 	conf=config()
 	accounts=conf.getConfig()
+
 
 	for kabbit_conf in accounts:
 		rw=roster_watcher()
 
 
-		p=plugin_manager(accounts[kabbit_conf])
+		p=plugin_manager(accounts[kabbit_conf],rw)
 
 		access_logger = kabbit_logger("/var/log/kabbit/access_" + kabbit_conf + ".log")
 
@@ -553,6 +580,11 @@ def main():
 
 
 		kabbit = kabbit_bot(q,rw,p,accounts[kabbit_conf],access_logger)
-		kabbit.run()
+		kabbit.setDaemon(1)
+		kabbit.start()
+
+	while stopped_by_sig==0:
+		time.sleep(1)
+
 
 main()

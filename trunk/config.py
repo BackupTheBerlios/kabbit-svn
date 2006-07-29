@@ -15,7 +15,10 @@ class kabbit_config:
 		self.__admin_users=[]
 		self.__accountName=""
 		self.__PluginDir=""
+		self.__AdminMail=""
 
+	def setAdminMail(self,mail):
+		self.__AdminMail=mail
 
 	def setPluginDir(self,pl_dir):
 		self.__PluginDir=pl_dir
@@ -73,6 +76,9 @@ class kabbit_config:
 
 	def getAdminusers(self):
 		return self.__admin_users
+
+	def getAdminMail(self):
+		return self.__AdminMail
 
 
 

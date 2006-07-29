@@ -8,7 +8,7 @@ sys.path.append("/usr/lib/kabbit")
 from plugin import plugin
 
 class kabbit_plugin(plugin):
-	def __init__(self,config):
+	def __init__(self,config,roster):
 		self.descr="Kabbit core plugins"
 		self.author="Sebastian Moors"
 		self.version="0.2"
@@ -16,9 +16,12 @@ class kabbit_plugin(plugin):
 		self.commands["status"]="Returns informations about diskspace, uptime etc."
 		self.commands["services"]="The same as ps on your machine"
 		self.commands["df"]="Returns free disk space"
+		self.commands["roster"]="Return the bot's roster"
 
 		self.help="Builtin plugins"
 		self.auth="private"
+		self.roster=roster
+
 
 	def process_message(self,cmd,args):
 		if cmd == "status":
@@ -29,6 +32,9 @@ class kabbit_plugin(plugin):
 
 		if cmd == "df":
 			return self.df("quiet")
+
+		if cmd == "roster":
+			return self.getRoster()
 
 
 	def services(self):
@@ -141,6 +147,10 @@ class kabbit_plugin(plugin):
 	def getVersion(self):
 		ShellObj = os.popen('/bin/cat /proc/version ')
 		return (ShellObj.read()).strip();
+
+	def getRoster(self):
+		'''return the bot's roster with status information'''
+		return self.roster.getRoster()
 
 if __name__ == "__main__":
 	pass

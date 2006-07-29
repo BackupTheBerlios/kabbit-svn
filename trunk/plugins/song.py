@@ -16,7 +16,7 @@ class kabbit_plugin(plugin):
 
 	debug=0
 
-	def __init__(self,config):
+	def __init__(self,config,roster):
 		self.descr="Lyrics Plugin"
 		self.author="Sebastian Moors"
 		self.version="0.2"

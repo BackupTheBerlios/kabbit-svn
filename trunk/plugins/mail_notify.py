@@ -10,14 +10,13 @@ import time
 from string import strip
 from os import stat
 
-###############################################
+#################################################################
 #	TODO:
 #		- register/unregister
 #		- check file permissions
 #		- check if user is online
 #		- authentication
-# 		- remove allowed_jids / rename to admin_jids (?)
-#
+#################################################################
 
 class email_account:
 	def __init__(self,jid,acc_type,server,username,pwd):
@@ -31,7 +30,7 @@ class email_account:
 
 
 class kabbit_plugin(plugin):
-	def __init__(self,config):
+	def __init__(self,config,roster):
 		self.descr="pop/imap Mail Notifier"
 		self.author="Sebastian Moors"
 		self.version="0.1"
@@ -83,11 +82,12 @@ class kabbit_plugin(plugin):
 	def poll(self,con):
 		for e in self.user_container:
 			if self.check_mail(e) == True:
-				con.send(xmpp.protocol.Message(e.jid,"You have new Mail @ " + e.server))
+				con.send(xmpp.protocol.Message(e.jid,"you have new Mail @ " + e.server,"chat"))
 
 
 	def check_mail(self,e):
 		if e.acc_type == "pop":
+
 			try:
 				if e.timeout == 0 or (time.time() - e.timeout) > self.delta:
 					M = poplib.POP3(strip(e.server))
@@ -97,7 +97,14 @@ class kabbit_plugin(plugin):
 
 
 					e.timeout = time.time()
-					if e.msg_count != 0 and e.msg_count <> numMessages:
+
+					#oops, someone has deleted mails. set the msg_count back
+					if e.msg_count !=0 and e.msg_count > numMessages:
+						e.msg_count=numMessages
+						return False
+
+					#seems that we have new mail
+					if e.msg_count != 0 and e.msg_count < numMessages:
 						e.msg_count=numMessages
 						return True
 					else:
@@ -113,9 +120,11 @@ class kabbit_plugin(plugin):
 
 
 		#check once if ssl is available and log it
-		if e.acc_type == "pop_ssl" and float(sys.version[0:3]) < 2.4 and self.pop_ssl_warn==False and self.conf.debug:
+		if e.acc_type == "pop_ssl" and float(sys.version[0:3]) < 2.4 and self.pop_ssl_warn==False and self.conf.getDebug()==1:
 			self.pop_ssl_warn=True;
 			print "pop_ssl requested, but python version < 2.4 found. Please upgrade to a version >= 2.4 "
+
+
 
 		if e.acc_type == "pop_ssl" and float(sys.version[0:3]) >= 2.4:
 
@@ -151,8 +160,7 @@ class kabbit_plugin(plugin):
 
 
 	def process_message(self,cmd,args):
-		if cmd == "test":
-			return self.conf.allowed_users
+		pass
 
 if __name__=="__main__":
    plugin2=kabbit_plugin(config())
