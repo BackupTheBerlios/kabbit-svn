@@ -142,6 +142,13 @@ class kabbit_plugin(plugin):
 
 
 					e.timeout = time.time()
+
+					#oops, someone has deleted mails. set the msg_count back
+					if e.msg_count !=0 and e.msg_count > numMessages:
+						e.msg_count=numMessages
+						return False
+
+
 					if e.msg_count != 0 and e.msg_count <> numMessages:
 						e.msg_count=numMessages
 						return True

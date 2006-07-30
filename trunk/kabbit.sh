@@ -27,9 +27,11 @@ fi
 chown kabbit $pidfile
 
 if [  $1 == "start" ]; then
+	echo "Starting kabbit"
 	start-stop-daemon -x $binfile  --start --pidfile $pidfile -c kabbit
 fi
 
 if [ $1 == "stop" ]; then
+	echo "Stopping kabbit"
 	start-stop-daemon  --stop --pidfile $pidfile
 fi
