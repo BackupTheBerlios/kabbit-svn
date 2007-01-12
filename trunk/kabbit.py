@@ -211,7 +211,7 @@ class queue_daemon(threading.Thread):
 			time.sleep(1)
 		        if self.send_queue.qsize() > 0 and self.con != "":
 				k_msg=self.send_queue.get()
-				self.con.send(xmpp.protocol.Message(k_msg.user,k_msg.msg))
+				self.con.send(xmpp.protocol.Message(k_msg.user,k_msg.msg,typ="chat"))
 				self.access_logger.access_log("out",str(k_msg.user),"*")
 
 
@@ -256,8 +256,8 @@ class roster_watcher:
 
 
 	def setStatus(self,jid,status):
-
-		if status in self.valid_states:
+		
+		if status in self.valid_states and self.roster.has_key(jid):
 			self.roster[jid].setStatus(status)
 
 
@@ -343,11 +343,6 @@ class kabbit_bot(threading.Thread):
 
 
 
-
-
-
-
-
 	def presenceCB(self,conn,prs):
 		'''callback handler for presence actions'''
 		msg_type = prs.getType()
@@ -365,10 +360,9 @@ class kabbit_bot(threading.Thread):
 			if self.DEBUG:
 				print who + " seems to be online now"
 			self.rw.setStatus(who,"online")
+		
 
-
-
-
+		
 		self.rw.setShow(who,str(show))
 
 
@@ -376,14 +370,9 @@ class kabbit_bot(threading.Thread):
 		allowed_jids = self.conf.getAdminusers()
 
 		if msg_type == 'subscribe' :
-			if conf.visibiliy == "public" or ((str(user)).split("/"))[0] in allowed_jids:
-				roster = conn.getRoster()
-				# for security reasons there's a maximal roster length
-				if len(roster) < MAX_ROSTER_LENGTH:
-					conn.send(xmpp.Presence(to=who, typ = 'subscribed'))
-					conn.send(xmpp.Presence(to=who, typ = 'subscribe'))
-				else:
-					self.logger.error("Maximum roster length reached,dropped subscribtion from " + str(user))
+			if self.conf.getVisibility() == "public" or ((str(who)).split("/"))[0] in allowed_jids:
+				conn.send(xmpp.Presence(to=who, typ = 'subscribed'))
+				conn.send(xmpp.Presence(to=who, typ = 'subscribe'))
 
 
 	def help(self):
@@ -391,7 +380,7 @@ class kabbit_bot(threading.Thread):
 		help_text = "\nHi, this is kabbit 0.0.8, your server-monitoring Killer Rabbit.";
 		help_text += "\nCopyright by Sebastian Moors <sebastian.moors@gmail.com> 23.02.2006";
 		help_text += "\nLicensed under GPLv2"
-		help_text += "\nThis bot is administrated by " + self.conf.getAdminEmail()
+		help_text += "\nThis bot is administrated by " + self.conf.getAdminMail()
 		help_text += "\n\nAvailable commands: \n\nstatus\t\t\tPrint status informations"
 		help_text += "\nservices\t\t\t Show running processes"
 		help_text += "\nplugins\t\t\t Show loaded plugins"
