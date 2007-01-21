@@ -23,7 +23,7 @@ class kabbit_plugin(plugin):
 		self.roster=roster
 
 
-	def process_message(self,cmd,args):
+	def process_message(self,user,cmd,args):
 		if cmd == "status":
 			return self.status()
 

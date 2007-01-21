@@ -166,7 +166,7 @@ class kabbit_plugin(plugin):
 
 
 
-	def process_message(self,cmd,args):
+	def process_message(self,user,cmd,args):
 		pass
 
 if __name__=="__main__":

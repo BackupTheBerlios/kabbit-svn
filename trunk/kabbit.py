@@ -460,14 +460,14 @@ class kabbit_bot(threading.Thread):
 
 		for plugin in self.p.pluginlist:
 			if self.p.pluginlist[plugin].auth == "public":
-				self.send_msg(conn,user,self.p.pluginlist[plugin].process_message(cmd,args))
+				self.send_msg(conn,user,self.p.pluginlist[plugin].process_message(user,cmd,args))
 
 			if self.p.pluginlist[plugin].auth == "self":
 				if pluginlist[plugin].authenticate(user):
-					self.send_msg(user, self.p.pluginlist[plugin].process_message(cmd,args))
+					self.send_msg(user, self.p.pluginlist[plugin].process_message(user,cmd,args))
 
 			if self.p.pluginlist[plugin].auth == "private" and auth == 1:
-				self.send_msg(conn,user, self.p.pluginlist[plugin].process_message(cmd,args))
+				self.send_msg(conn,user, self.p.pluginlist[plugin].process_message(user,cmd,args))
 
 
 	def run(self):

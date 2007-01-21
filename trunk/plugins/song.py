@@ -82,7 +82,7 @@ class kabbit_plugin(plugin):
 				print "[Lyrc] --> lyrics found :) ("+ARTIST+"-"+TITLE+")"
 		return my_buffer
 
-	def process_message(self,mess,args):
+	def process_message(self,user,mess,args):
 
 		if mess != "lyr":
 			return ""
