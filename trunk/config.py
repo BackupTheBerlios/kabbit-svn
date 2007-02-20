@@ -105,7 +105,7 @@ class config:
 			c.setLogfile(config.get(account,"log_file"))
 			c.setLoglevel(config.get(account,"log_level"))
 			c.setPluginDir(config.get(account,"plugin_dir"))
-
+			c.setAccountName(account)
 
 			if config.get(account,"admin_users").find(",") >= 0:
 				admin_users=config.get(account,"admin_users").split(",")

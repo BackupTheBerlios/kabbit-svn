@@ -272,7 +272,7 @@ class roster_watcher:
 
 class kabbit_bot(threading.Thread):
 
-	def __init__(self,queue_daemon,roster_watcher,plugin_manager,config,access_logger):
+	def __init__(self,queue_daemon,roster_watcher,plugin_manager,config,access_logger,sys_logger):
 		threading.Thread.__init__(self)
 
 
@@ -284,7 +284,7 @@ class kabbit_bot(threading.Thread):
 
 		self.DEBUG = self.conf.getDebug()
 		self.access_logger=access_logger
-
+		self.syslog=sys_logger
 
 
 		##########################################################
@@ -296,17 +296,8 @@ class kabbit_bot(threading.Thread):
 		##########################################################
 
 
-		self.logger = logging.getLogger('kabbit')
-		hdlr = logging.FileHandler(self.conf.getLogfile())
-		formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-		hdlr.setFormatter(formatter)
-		self.logger.addHandler(hdlr)
-
-		if self.conf.getLoglevel() == "warning":
-			self.logger.setLevel(logging.WARNING)
-		else:
-			self.logger.setLevel(logging.ERROR)
-
+		self.syslog.warning("starting kabbit container '"+ self.conf.getAccountName() + "'")
+		
 
 
 	def StepOn(self,conn):
@@ -489,25 +480,25 @@ class kabbit_bot(threading.Thread):
 
 				if not conres:
 					if self.DEBUG: print "Unable to connect to server %s!"%server
-					self.logger.error("Unable to connect to server %s!"%server)
+					self.syslog.error("Unable to connect to server %s!"%server)
 					sys.exit(1)
 
 				if conres <> 'tls':
 					if self.DEBUG: print 'Warning: unable to estabilish secure connection - TLS failed!'
-					self.logger.warning('Warning: unable to estabilish secure connection - TLS failed!')
+					self.syslog.warning('Warning: unable to estabilish secure connection - TLS failed!')
 				authres = conn.auth(user,password)
 
 
 				if not authres:
 					if self.DEBUG: print "Unable to authorize on %s - check login/password."%server
-					self.logger.error("Unable to authorize on %s - check login/password."%server)
+					self.syslog.error("Unable to authorize on %s - check login/password."%server)
 					sys.exit(1)
 
 
 
 				if authres <> 'sasl':
 					if self.DEBUG: print "Warning: unable to perform SASL auth os " + server + ". Old authentication method used!"
-					self.logger.warning("Warning: unable to perform SASL auth os " + server + ". Old authentication method used!")
+					self.syslog.warning("Warning: unable to perform SASL auth os " + server + ". Old authentication method used!")
 
 				#register our handlers
 				conn.RegisterHandler('message', self.messageCB)
@@ -563,12 +554,12 @@ def main():
 		p=plugin_manager(accounts[kabbit_conf],rw)
 
 		access_logger = kabbit_logger("/var/log/kabbit/access_" + kabbit_conf + ".log")
-
+		sys_logger = kabbit_logger("/var/log/kabbit/" + kabbit_conf + ".log")
 		q=queue_daemon(Queue(),access_logger)
 		q.start()
 
 
-		kabbit = kabbit_bot(q,rw,p,accounts[kabbit_conf],access_logger)
+		kabbit = kabbit_bot(q,rw,p,accounts[kabbit_conf],access_logger,sys_logger)
 		kabbit.setDaemon(1)
 		kabbit.start()
 

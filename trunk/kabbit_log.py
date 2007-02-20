@@ -11,3 +11,14 @@ class kabbit_logger:
 		file.write("[" + str(time.strftime("%d/%B/%Y:%H:%M:%S") + "]") + " [" + direction +"] " +  jid + " " + command + "\n")
 		file.close()
 
+	def warning(self,command):
+		file=open(self.access_log_path,"a+")
+		file.write("[" + str(time.strftime("%d/%B/%Y:%H:%M:%S") + "]  ") +  command + "\n")
+		file.close()
+
+	def error(self,command):
+		file=open(self.access_log_path,"a+")
+                file.write("[" + str(time.strftime("%d/%B/%Y:%H:%M:%S") + "]") + "  [error]  " + command + "\n")
+		file.close() 					 
+				
+
