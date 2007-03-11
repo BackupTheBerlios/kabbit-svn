@@ -3,6 +3,20 @@
 # Sebastian Moors 23.02.2006
 # sebastian.moors@gmail.com
 
+function start()
+{
+	echo "Starting kabbit"
+	start-stop-daemon -x $binfile  --start --pidfile $pidfile -c kabbit
+}
+
+function stop()
+{
+	echo "Stopping kabbit"
+	start-stop-daemon  --stop --pidfile $pidfile
+}
+
+
+
 if [ $# -ne 1 ]; then
 	echo "Usage: /etc/init.d/kabbit start | stop"
 	exit 1
@@ -27,11 +41,14 @@ fi
 chown kabbit $pidfile
 
 if [  $1 == "start" ]; then
-	echo "Starting kabbit"
-	start-stop-daemon -x $binfile  --start --pidfile $pidfile -c kabbit
+	start
 fi
 
 if [ $1 == "stop" ]; then
-	echo "Stopping kabbit"
-	start-stop-daemon  --stop --pidfile $pidfile
+	stop
+fi
+
+if [ $1 == "restart" ]; then
+	stop
+	start
 fi
