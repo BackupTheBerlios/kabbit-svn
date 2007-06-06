@@ -10,12 +10,6 @@ import time
 from string import strip
 from os import stat
 
-#################################################################
-#	TODO:
-#		- register/unregister
-#		- check if user is online
-#		- authentication
-#################################################################
 
 class email_account:
 	def __init__(self,jid,acc_type,server,username,pwd):
@@ -100,7 +94,7 @@ class kabbit_plugin(plugin):
 					M.user(e.username)
 					M.pass_(e.pwd)
 					numMessages = len(M.list()[1])
-
+					
 
 					e.timeout = time.time()
 
