@@ -81,6 +81,7 @@ if not os.path.isdir("/usr/lib/kabbit/plugins"):
 
 #copy plugins
 shutil.copyfile("plugins/song.py","/usr/lib/kabbit/plugins/song.py")
+shutil.copyfile("plugins/todo.py","/usr/lib/kabbit/plugins/todo.py")
 shutil.copyfile("plugins/core.py","/usr/lib/kabbit/plugins/core.py")
 shutil.copyfile("plugins/mail_notify.py","/usr/lib/kabbit/plugins/mail_notify.py")
 
@@ -106,6 +107,7 @@ if os.path.isfile("/etc/kabbit.conf"):
 		print "Not overwriting\n"
 	else:
 		print "New configfile generated"
+		shutil.copyfile("/etc/kabbit.conf","/etc/kabbit.conf.old")
 		shutil.copyfile("./kabbit.conf.tmpl","/etc/kabbit.conf")
 else:
 	shutil.copyfile("./kabbit.conf.tmpl","/etc/kabbit.conf")
