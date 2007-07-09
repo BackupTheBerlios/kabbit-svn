@@ -5,10 +5,27 @@ sys.path.append("/usr/lib/kabbit")
 from plugin import plugin
 from config import config
 import xmpp
-import poplib
 import time
 from string import strip
 from os import stat
+
+
+#check if poplib is available
+try:
+	import poplib
+	pop_enabled=True
+except Exception:
+	pop_enabled=False
+
+#check if poplib is available
+try:
+	import imaplib
+	imap_enabled=True
+except Exception:
+	imap_enabled=False
+
+print "pop_enabled: " + str(pop_enabled)
+print "imap_enabled: " + str(imap_enabled)
 
 
 class email_account:
@@ -20,7 +37,7 @@ class email_account:
 		self.pwd=pwd
 		self.msg_count=0
 		self.timeout=0
-
+		
 
 class kabbit_plugin(plugin):
 	def __init__(self,config,roster):
@@ -59,15 +76,20 @@ class kabbit_plugin(plugin):
 		#
 		#
 
-		f=file.readline()
+		f=(file.readline()).strip()
 		while(f):
-			jid=strip(f.split(":")[0])
-			acc_type=strip(f.split(":")[1])
-			server=strip(f.split(":")[2])
-			username=strip(f.split(":")[3])
-			pwd=strip(f.split(":")[4])
-			self.user_container.append(email_account(jid,acc_type,server,username,pwd))
-			f=file.readline()
+			if f[0]!="#":
+				jid=strip(f.split(":")[0])
+				acc_type=strip(f.split(":")[1])
+				server=strip(f.split(":")[2])
+				username=strip(f.split(":")[3])
+				pwd=strip(f.split(":")[4])
+				print "account for %s was created" % jid
+				self.user_container.append(email_account(jid,acc_type,server,username,pwd))
+			f=(file.readline()).strip()
+
+		
+
 
 
 
@@ -86,7 +108,8 @@ class kabbit_plugin(plugin):
 
 
 	def check_mail(self,e):
-		if e.acc_type == "pop":
+		if e.acc_type == "pop" and pop_enabled:
+			
 
 			try:
 				if e.timeout == 0 or (time.time() - e.timeout) > self.delta:
@@ -120,13 +143,13 @@ class kabbit_plugin(plugin):
 
 
 		#check once if ssl is available and log it
-		if e.acc_type == "pops" and float(sys.version[0:3]) < 2.4 and self.pop_ssl_warn==False:
+		if e.acc_type == "pops" and float(sys.version[0:3]) < 2.4 and self.pop_ssl_warn==False and pop_enabled:
 			self.pop_ssl_warn=True;
 			print "pops requested, but python version < 2.4 found. Please upgrade to a version >= 2.4 "
 
 
 
-		if e.acc_type == "pops" and float(sys.version[0:3]) >= 2.4:
+		if e.acc_type == "pops" and float(sys.version[0:3]) >= 2.4 and pop_enabled:
 
 			#
 			# poplib ssl support must be enabled
@@ -138,6 +161,80 @@ class kabbit_plugin(plugin):
 					M = poplib.POP3_SSL(strip(e.server))
 					M.user(e.username)
 					M.pass_(e.pwd)
+					numMessages = len(M.list()[1])
+					e.timeout = time.time()
+					#oops, someone has deleted mails. set the msg_count back
+					if e.msg_count !=0 and e.msg_count > numMessages:
+						e.msg_count=numMessages
+						return 0 
+
+
+					if e.msg_count != 0 and e.msg_count <> numMessages:
+						old_msg_count=e.msg_count
+						e.msg_count=numMessages
+						return (numMessages - old_msg_count)
+					else:
+
+						if e.msg_count==0:
+							e.msg_count=numMessages
+
+						return 0
+
+			except Exception,e:
+				print "some error occured" + str(e)
+				return False
+		
+		if e.acc_type == "imap" and imap_enabled:
+			
+			try:
+				if e.timeout == 0 or (time.time() - e.timeout) > self.delta:
+					M = imaplib.IMAP4(strip(e.server))
+					M.login(e.username,e.pwd)
+					numMessages = len(M.list()[1])
+					
+
+					e.timeout = time.time()
+
+					#oops, someone has deleted mails. set the msg_count back
+					if e.msg_count !=0 and e.msg_count > numMessages:
+						e.msg_count=numMessages
+						return 0 
+
+					#seems that we have new mail
+					if e.msg_count != 0 and e.msg_count < numMessages:
+						e.msg_count=numMessages
+						return numMessages - e.msg_count
+					else:
+
+						if e.msg_count==0:
+							e.msg_count=numMessages
+
+						return 0
+
+			except Exception,ex:
+				print "some error occured" + str(ex)
+				return False
+
+
+		#check once if ssl is available and log it
+		#f e.acc_type == "pops" and float(sys.version[0:3]) < 2.4 and self.pop_ssl_warn==False:
+		#self.pop_ssl_warn=True;
+		#print "pops requested, but python version < 2.4 found. Please upgrade to a version >= 2.4 "
+
+
+
+		if e.acc_type == "imaps" and imap_enabled: #and float(sys.version[0:3]) >= 2.4:
+
+			#
+			# imaplib ssl support must be enabled
+			# you have to use a python version >= 2.4
+			#
+
+			try:
+				
+				if e.timeout == 0 or (time.time() - e.timeout) > self.delta:
+					M = imaplib.IMAP4_SSL(strip(e.server))
+					M.login(e.username,e.pwd)
 					numMessages = len(M.list()[1])
 					e.timeout = time.time()
 
@@ -168,6 +265,3 @@ class kabbit_plugin(plugin):
 	def process_message(self,user,cmd,args):
 		pass
 
-if __name__=="__main__":
-   plugin2=kabbit_plugin(None,None)
-   plugin2.poll("a")
