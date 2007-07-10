@@ -56,13 +56,13 @@ class kabbit_plugin(plugin):
 
 		
 	def deleteTodo(self,user,args):
-		print "indelete"
+		
 		delete = False
 
 		if not os.path.isfile(self.todoFile): return "Your list is empty."
 
 
-		for line in fileinput.input(self.todoFile,inplace =1):
+		for line in fileinput.input(self.todoFile,inplace=1):
 		 	line = line.strip()
 			if (line.split(":"))[0] == (str(user).split("/"))[0] and (line.split(":"))[2]!=args: 
 				print line
@@ -88,7 +88,10 @@ class kabbit_plugin(plugin):
 			if str(user) == fUser: 
 				result = result + topic + "\n"
 		file.close()
+		
 		if result.strip()=="":
 			return "Your todolist is emtpy."
 		return result
+	
+
 
